@@ -1,0 +1,443 @@
+package com.itsone.igm.contr;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.google.gson.JsonObject;
+import com.itsone.igm.contr.err.ExpectedException;
+import com.itsone.igm.contr.err.ResponseType;
+import com.itsone.igm.data.geo_item.GeoMath;
+import com.itsone.igm.data.geo_item.GeoPoint;
+import com.itsone.igm.data.json_item.WmgGiItem;
+import com.itsone.igm.service.GiService;
+import com.itsone.igm.utility.CommonUtil;
+import com.itsone.igm.vo.Wmg0050Vo;
+import com.itsone.igm.vo.Wmg0100Vo;
+import com.itsone.igm.vo.Wmg0200Vo;
+import com.itsone.igm.vo.Wmg0201Vo;
+import com.itsone.igm.vo.Wmg0202Vo;
+import com.itsone.igm.vo.WmgAdminActVo;
+
+@RestController
+@RequestMapping("/igm/")
+public class GiCntr {
+	
+	@SuppressWarnings("unused")
+	private static final Logger logger = LoggerFactory.getLogger(GiCntr.class);
+	
+	@Autowired private GiService giService;
+
+	// 코스 정보 불러오기
+	@RequestMapping("gi/req_comp_info")
+	@ResponseBody
+	public Object req_comp_info(HttpServletRequest request) {
+		logger.info(">>>>> GiCntr >>> req_comp_info1");
+		
+		List<Wmg0050Vo> retWmg0050s = giService.selWmgCompInfo();
+		if (retWmg0050s.size() == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		return new WmgGiItem(ResponseType.SUCCESS, null, null, null, retWmg0050s);
+	}	
+	
+	// 로그인 정보 불러오기
+	@RequestMapping("gi/req_login")
+	@ResponseBody
+	public Object req_login(HttpServletRequest request) {
+		// keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String tel = request.getParameter("tel");
+		String pwd = request.getParameter("pwd");
+		
+		if (CommonUtil.isEmpty(tel) || CommonUtil.isEmpty(pwd)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+
+		WmgAdminActVo retWmgAdmAct = null; 
+		
+		WmgAdminActVo vo = new WmgAdminActVo();
+		vo.setAdmTel(tel);
+		vo.setAdmPw(pwd);
+		
+		retWmgAdmAct = giService.selWmgLoginInfo(vo);
+		if (retWmgAdmAct == null) {
+			throw ExpectedException.FAIL_NO_EMPL_INFO;
+		}
+		
+		retWmgAdmAct.setAdmPw(retWmgAdmAct.getAdmPwValue());
+		retWmgAdmAct.setAdmPwValue(null);
+		
+		return new WmgGiItem(ResponseType.SUCCESS, retWmgAdmAct, null, null, null);
+	}
+	
+	// 코스 정보 불러오기
+	@RequestMapping("gi/req_cour_info")
+	@ResponseBody
+	public Object req_cour_info(HttpServletRequest request) {
+		// keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		// String cgDiv = request.getParameter("cgDiv");
+		String coDiv = request.getParameter("coDiv");
+		
+		if (CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+
+		Wmg0100Vo vo = new Wmg0100Vo();
+		//vo.setCgDiv(cgDiv);
+		vo.setCoDiv(coDiv);
+		
+		List<Wmg0100Vo> retWmg100s = giService.selWmgCourInfos(vo);
+		
+		return new WmgGiItem(ResponseType.SUCCESS, null, retWmg100s, null, null);
+	}
+	
+	// 홀 정보 불러오기
+	@RequestMapping("gi/req_hole_info")
+	@ResponseBody
+	public Object req_hole_geo(HttpServletRequest request) {
+		// keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String crsCd = request.getParameter("crsCd");
+		String holeNo = request.getParameter("holeNo");
+		String isInitStr = request.getParameter("isInit");
+		boolean isInit = false;
+		
+		if (CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		if (isInitStr != null && isInitStr.equalsIgnoreCase("Y")) {
+			isInit = true;
+		}
+		
+		Wmg0200Vo vo = new Wmg0200Vo();
+		vo.setCoDiv(coDiv);
+		vo.setCrsCd(crsCd);
+		if (!CommonUtil.isEmpty(holeNo)) {
+			vo.setHoleNo(Integer.parseInt(holeNo));	
+		}
+		
+		List<Wmg0200Vo> retWmg200s = giService.selWmgHoleInfos(vo);
+		for (Wmg0200Vo item : retWmg200s) {
+			Wmg0201Vo t1Vo = new Wmg0201Vo();
+			t1Vo.setCoDiv(item.getCoDiv());
+			t1Vo.setCrsCd(item.getCrsCd());
+			t1Vo.setHoleNo(item.getHoleNo());	
+			
+			item.setWmg201s(giService.selWmgTeeInfos(t1Vo));
+			
+			
+			if (!isInit) {
+				Wmg0202Vo t2Vo = new Wmg0202Vo();
+				t2Vo.setCoDiv(item.getCoDiv());
+				t2Vo.setCrsCd(item.getCrsCd());
+				t2Vo.setHoleNo(item.getHoleNo());	
+				
+				item.setWmg202s(giService.selWmgDotInfos(t2Vo));	
+			}
+			
+			if (isInit) {
+				GeoPoint whiteTee = null;
+				for (Wmg0201Vo teeItem : item.getWmg201s()) {
+					if (teeItem.getTeeClr().equalsIgnoreCase("#FFFFFF")) {
+						whiteTee = new GeoPoint(teeItem.getTeeGeoX(), teeItem.getTeeGeoY());
+						break;
+					}
+				}
+				
+				if (whiteTee != null) {
+					item.setPinDist((int)GeoMath.dist(whiteTee.getY(), whiteTee.getX(), 
+							item.getPinGeoY(), item.getPinGeoX(), "m"));					
+				} else {
+					item.setPinDist(0);
+				}
+				
+				if (item.getWmg201s() != null && item.getWmg201s().size() > 0) {
+					int size = item.getWmg201s().size();
+					
+					item.setFrontDist((int)GeoMath.dist(item.getWmg201s().get(0).getTeeGeoY(), 
+							item.getWmg201s().get(0).getTeeGeoX(), item.getPinGeoY(), item.getPinGeoX(), "m"));
+					item.setBackDist((int)GeoMath.dist(item.getWmg201s().get(size - 1).getTeeGeoY(), 
+							item.getWmg201s().get(size - 1).getTeeGeoX(), item.getPinGeoY(), item.getPinGeoX(), "m"));
+				} else {
+					item.setFrontDist(0);
+					item.setBackDist(0);
+				}
+				
+				item.setTlLaY(0.0d);
+				item.setTlLoX(0.0d);
+				item.setTrLaY(0.0d);
+				item.setTrLoX(0.0d);
+				item.setBlLaY(0.0d);
+				item.setBlLoX(0.0d);
+				item.setBrLaY(0.0d);
+				item.setBrLoX(0.0d);
+				
+				item.setCenterGeoY(0.0d);
+				item.setCenterGeoX(0.0d);
+				
+				item.setRotate(0.0d);
+				item.setZoomW(0);
+				item.setZoomN(0.0);
+				
+				item.setPinGeoY(0.0d);
+				item.setPinGeoX(0.0d);
+				
+				for (Wmg0201Vo teeItem : item.getWmg201s()) {
+					teeItem.setTeeGeoX(0.0d);
+					teeItem.setTeeGeoY(0.0d);
+				}
+			} else {
+				item.setCrsName("");
+				item.setHoleNoNm("");
+				item.setHoleExpl("");
+				
+				for (Wmg0201Vo teeItem : item.getWmg201s()) {
+					teeItem.setTeeNm("");
+				}
+			}
+		}
+		
+		return new WmgGiItem(ResponseType.SUCCESS, null, null, retWmg200s, null);
+	}
+	
+	// 
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/upd_last_act")
+	@ResponseBody
+	public Object upd_last_act(HttpServletRequest request) {
+//		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String admCd = request.getParameter("admCd");
+		String admPw = request.getParameter("admPw");
+		String admLv = request.getParameter("admLv");
+		String admName = request.getParameter("admName");
+		String admTel = request.getParameter("admTel");
+		
+		String actType = request.getParameter("actType");
+		String actCoDiv = request.getParameter("actCoDiv");
+		logger.info("upd_last_act >> actCoDiv : " + actCoDiv);
+		
+		String actCrsCd = request.getParameter("actCrsCd");
+		String actHoleNo = request.getParameter("actHoleNo");
+		String actPointType = request.getParameter("actPointType");
+		
+		if (CommonUtil.isEmpty(admCd) || CommonUtil.isEmpty(admPw)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		WmgAdminActVo vo = new WmgAdminActVo();
+		vo.setAdmCd(admCd);
+		vo.setAdmPw(admPw);
+		if (!CommonUtil.isEmpty(admLv)) {
+			vo.setAdmLv(Integer.parseInt(admLv));
+		}
+		vo.setAdmName(admName);
+		vo.setAdmTel(admTel);
+		
+		vo.setActType(actType);
+		vo.setActCoDiv(actCoDiv);
+		vo.setActCrsCd(actCrsCd);
+		logger.info("upd_last_act >> getActCrsCd : " + vo.getActCrsCd());
+		if (!CommonUtil.isEmpty(actHoleNo)) {
+			vo.setActHoleNo(Integer.parseInt(actHoleNo));
+		}
+		vo.setActPointType(actPointType);
+
+		int ret = 0;
+		
+		int existAdm = giService.selWmgExistAdmCd(admCd);
+		if (existAdm > 0) {
+			ret = giService.updLastAct(vo);
+		} else {
+			ret = giService.insLastAct(vo);
+		}
+		
+		if (ret == 0) {
+			throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping(value="gi/upd_hole_info", method=RequestMethod.POST)
+	@ResponseBody
+	public Object upd_hole_info(HttpServletRequest request, @RequestBody List<Wmg0201Vo> tees, @RequestBody List<Wmg0202Vo> dots) {
+//		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String crsCd = request.getParameter("crsCd");
+		String crsName = request.getParameter("crsName");
+		String holeNo = request.getParameter("holeNo");
+		String holeNoNm = request.getParameter("holeNoNm");
+		
+		String tlLaY = request.getParameter("tlLaY");
+		String tlLoX = request.getParameter("tlLoX");
+		String trLaY = request.getParameter("trLaY");
+		String trLoX = request.getParameter("trLoX");
+		String blLaY = request.getParameter("blLaY");
+		String blLoX = request.getParameter("blLoX");
+		String brLaY = request.getParameter("brLaY");
+		String brLoX = request.getParameter("brLoX");
+		
+		String pinGeoY = request.getParameter("pinGeoY");
+		String pinGeoX = request.getParameter("pinGeoX");
+		
+		String holeExpl = request.getParameter("holeExpl");
+		
+		if (CommonUtil.isEmpty(coDiv) || CommonUtil.isEmpty(crsCd)
+				 || CommonUtil.isEmpty(holeNo)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Wmg0200Vo vo = new Wmg0200Vo();
+		vo.setCoDiv(coDiv);
+		vo.setCrsCd(crsCd);
+		vo.setCrsName(crsName);
+		if (!CommonUtil.isEmpty(holeNo)) {vo.setHoleNo(Integer.parseInt(holeNo));}
+		vo.setHoleNoNm(holeNoNm != null? holeNoNm: "");
+		
+		if (!CommonUtil.isEmpty(tlLaY)) {vo.setTlLaY(Double.parseDouble(tlLaY));}
+		if (!CommonUtil.isEmpty(tlLoX)) {vo.setTlLoX(Double.parseDouble(tlLoX));}
+		if (!CommonUtil.isEmpty(trLaY)) {vo.setTrLaY(Double.parseDouble(trLaY));}
+		if (!CommonUtil.isEmpty(trLoX)) {vo.setTrLoX(Double.parseDouble(trLoX));}
+		if (!CommonUtil.isEmpty(blLaY)) {vo.setBlLaY(Double.parseDouble(blLaY));}
+		if (!CommonUtil.isEmpty(blLoX)) {vo.setBlLoX(Double.parseDouble(blLoX));}
+		if (!CommonUtil.isEmpty(brLaY)) {vo.setBrLaY(Double.parseDouble(brLaY));}
+		if (!CommonUtil.isEmpty(brLoX)) {vo.setBrLoX(Double.parseDouble(brLoX));}		
+		
+		if (vo.getTlLaY() != null && vo.getTlLoX() != null && vo.getTrLaY() != null && vo.getTrLoX() != null 
+				&& vo.getBlLaY() != null && vo.getBlLoX() != null && vo.getBrLaY() != null && vo.getBrLoX() != null) {
+			// squre calc
+			// squre center calc
+
+			List<GeoPoint> geos= new ArrayList<>();
+			GeoPoint geo = new GeoPoint(vo.getTlLoX(), vo.getTlLaY());
+			geos.add(geo);
+			geo = new GeoPoint(vo.getTrLoX(), vo.getTrLaY());
+			geos.add(geo);
+			geo = new GeoPoint(vo.getBrLoX(), vo.getBrLaY());
+			geos.add(geo);
+			geo = new GeoPoint(vo.getBlLoX(), vo.getBlLaY());
+			geos.add(geo);
+			
+			GeoPoint centP = GeoMath.getCentRect(geos);
+			vo.setCenterGeoX(centP.getX());
+			vo.setCenterGeoY(centP.getY());
+			
+			vo.setRotate(GeoMath.getAngle(geos.get(0), geos.get(3)));
+			
+			List<GeoPoint> calcGeos = GeoMath.getRecToRaRect(270 - vo.getRotate(), geos, centP);
+			
+			vo.setTlLaY(calcGeos.get(0).getY());
+			vo.setTlLoX(calcGeos.get(0).getX());
+			vo.setTrLaY(calcGeos.get(1).getY());
+			vo.setTrLoX(calcGeos.get(1).getX());
+			vo.setBrLaY(calcGeos.get(2).getY());
+			vo.setBrLoX(calcGeos.get(2).getX());
+			vo.setBlLaY(calcGeos.get(3).getY());
+			vo.setBlLoX(calcGeos.get(3).getX());
+			
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos : " + calcGeos);
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.size() : " + calcGeos.size());
+//			
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.get(0).getY() : " + calcGeos.get(0).getY());
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.get(0).getX() : " + calcGeos.get(0).getX());
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.get(1).getY() : " + calcGeos.get(1).getY());
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.get(1).getX() : " + calcGeos.get(1).getX());
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.get(2).getY() : " + calcGeos.get(2).getY());
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.get(2).getX() : " + calcGeos.get(2).getX());
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.get(3).getY() : " + calcGeos.get(3).getY());
+//			logger.info("upd_hole_info >> getEmplLv >> calcGeos.get(3).getX() : " + calcGeos.get(3).getX());
+//			
+//			logger.info("upd_hole_info >> getEmplLv >> calcY : " + (calcGeos.get(3).getY() - calcGeos.get(0).getY()));
+//			logger.info("upd_hole_info >> getEmplLv >> calcX : " + (calcGeos.get(1).getX() - calcGeos.get(0).getX()));
+			
+			// rotation calc
+			// zoom calc
+		}		
+		
+		if (!CommonUtil.isEmpty(pinGeoY)) {
+			vo.setPinGeoY(Double.parseDouble(pinGeoY));
+		} else {
+			vo.setPinGeoY(0.0);
+		}
+		
+		if (!CommonUtil.isEmpty(pinGeoX)) {
+			vo.setPinGeoX(Double.parseDouble(pinGeoX));
+		} else {
+			vo.setPinGeoX(0.0);
+		}
+		
+		vo.setZoomW(3);
+		vo.setZoomN(16.2);
+		
+		vo.setHoleExpl(holeExpl != null? holeExpl: "");
+		
+		int ret = 0;
+		
+		int existHole = giService.selWmgExistHoleInfo(vo);
+		if (existHole > 0) {
+			ret = giService.updHoleInfo(vo);
+		} else {
+			ret = giService.insHoleInfo(vo);
+		}
+		
+		if (ret == 0) {
+			throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+		}
+		
+		if (tees != null && tees.size() > 0) {
+			Wmg0201Vo wmgVo = new Wmg0201Vo();
+			wmgVo.setCoDiv(coDiv);
+			wmgVo.setCrsCd(crsCd);
+
+			giService.removTeeInfo(wmgVo);
+			for (Wmg0201Vo item : tees) {
+				int updRet = giService.updTeeInfo(item);
+				
+				if (updRet == 0) {
+					giService.insTeeInfo(item);
+				}
+			}
+		}
+		
+		if (dots != null && dots.size() > 0) {
+			Wmg0202Vo wmgVo = new Wmg0202Vo();
+			wmgVo.setCoDiv(coDiv);
+			wmgVo.setCrsCd(crsCd);
+
+			giService.removDotInfo(wmgVo);			
+			for (Wmg0202Vo item : dots) {
+				int updRet = giService.updDotInfo(item);
+				
+				if (updRet == 0) {
+					giService.insDotInfo(item);
+				}
+			}
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}	
+}

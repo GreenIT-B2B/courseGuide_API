@@ -1,0 +1,205 @@
+package com.itsone.igm.service.impl;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.itsone.igm.dao.GiMapper;
+import com.itsone.igm.service.GiService;
+import com.itsone.igm.vo.Wmg0050Vo;
+import com.itsone.igm.vo.Wmg0100Vo;
+import com.itsone.igm.vo.Wmg0200Vo;
+import com.itsone.igm.vo.Wmg0201Vo;
+import com.itsone.igm.vo.Wmg0202Vo;
+import com.itsone.igm.vo.Wmg0203Vo;
+import com.itsone.igm.vo.Wmg0300Vo;
+import com.itsone.igm.vo.WmgAdminActVo;
+
+@Service
+public class GiServiceImpl implements GiService {
+	@Autowired private GiMapper dao;
+	
+	@SuppressWarnings("unused")
+	private static final Logger logger = LoggerFactory.getLogger(GiServiceImpl.class);
+	
+	@Override
+	public WmgAdminActVo selLoginInfo(WmgAdminActVo vo) {
+		return dao.selLoginInfo(vo);
+	}
+	
+	@Override
+	public List<Wmg0050Vo> selCompInfo(String val) {
+		return dao.selCompInfo(val);
+	}
+	
+	@Override
+	public Wmg0050Vo selCoDivToCompInfo(String val) {
+		return dao.selCoDivToCompInfo(val);
+	}
+	
+	@Override
+	public List<Wmg0100Vo> selCourInfos(String val) {
+		return dao.selCourInfos(val);
+	}
+	
+	@Override
+	public List<Wmg0100Vo> selCourNames(String val) {
+		return dao.selCourNames(val);
+	}
+	
+	@Override
+	public List<Wmg0200Vo> selHoleInfos(Wmg0200Vo vo) {
+		return dao.selHoleInfos(vo);
+	}
+	
+	@Override
+	public List<Wmg0300Vo> selMoblies() {
+		return dao.selMoblies();
+	}
+
+	@Override
+	public Integer selExistCompInfo(String val) {
+		return dao.selExistCompInfo(val);
+	}
+	
+	@Override
+	public Integer insCompInfo(Wmg0050Vo vo) {
+		return dao.insCompInfo(vo);
+	}
+	
+	@Override
+	public Integer updCompInfo(Wmg0050Vo vo) {
+		return dao.updCompInfo(vo);
+	}
+	
+	@Override
+	public Integer selExistCourInfo(Wmg0100Vo vo) {
+		return dao.selExistCourInfo(vo);
+	}
+
+	@Override
+	public Integer insCourInfo(Wmg0100Vo vo) {
+		return dao.insCourInfo(vo);
+	}
+	
+	@Override
+	public Integer updCourInfo(Wmg0100Vo vo) {
+		return dao.updCourInfo(vo);
+	}
+	
+	@Override
+	public Integer insCourInfos(List<Wmg0100Vo> list) {
+		return dao.insCourInfos(list);
+	}
+	
+	@Override
+	public Integer updCourInfos(List<Wmg0100Vo> list) {
+		return dao.updCourInfos(list);
+	}
+	
+	
+	
+	
+
+	
+	@Override
+	public Integer selExistHoleInfo(Wmg0200Vo vo) {
+		return dao.selExistHoleInfo(vo);
+	}
+	
+	@Override
+	public Integer insHoleInfo(Wmg0200Vo vo) {
+		return dao.insHoleInfo(vo);
+	}
+	
+	@Override
+	public Integer updHoleInfo(Wmg0200Vo vo) {
+		return dao.updHoleInfo(vo);
+	}
+	
+	@Override
+	public List<Wmg0201Vo> selTeeInfos(Wmg0201Vo vo) {
+		return dao.selTeeInfos(vo);
+	}
+	
+	@Override
+	public Integer insTeeInfo(Wmg0201Vo vo) {
+		return dao.insTeeInfo(vo);
+	}
+	
+	@Override
+	public Integer updTeeInfo(Wmg0201Vo vo) {
+		return dao.updTeeInfo(vo);
+	}
+	
+	@Override
+	public Integer removTeeInfo(Wmg0201Vo vo) {
+		return dao.removTeeInfo(vo);
+	}
+	
+	@Override
+	public List<Wmg0202Vo> selDotInfos(Wmg0202Vo vo) {
+		return dao.selDotInfos(vo);
+	}
+	
+	@Override
+	public Integer insDotInfo(Wmg0202Vo vo) {
+		return dao.insDotInfo(vo);
+	}
+	
+	@Override
+	public Integer updDotInfo(Wmg0202Vo vo) {
+		return dao.updDotInfo(vo);
+	}
+	
+	@Override
+	public Integer removDotInfo(Wmg0202Vo vo) {
+		return dao.removDotInfo(vo);
+	}
+	
+	@Override
+	public List<Wmg0203Vo> selAreaInfos(Wmg0203Vo vo) {
+		return dao.selAreaInfos(vo);
+	}
+	
+	@Override
+	public Integer insAreaInfo(Wmg0203Vo vo) {
+		return dao.insAreaInfo(vo);
+	}
+	
+	@Override
+	public Integer updAreaInfo(Wmg0203Vo vo) {
+		return dao.updAreaInfo(vo);
+	}
+	
+	@Override
+	public Integer removAreaInfo(Wmg0203Vo vo) {
+		return dao.removAreaInfo(vo);
+	}
+	
+	@Override
+	public List<Wmg0203Vo> selCoToAreaInfos(Wmg0203Vo vo) {
+		return dao.selCoToAreaInfos(vo);
+	}
+	
+	
+	@Override
+	public Integer selExistAdmCd(String val) {
+		return dao.selExistAdmCd(val);
+	}
+	
+	@Override
+	public Integer insLastAct(WmgAdminActVo vo) {
+		return dao.insLastAct(vo);
+	}
+	
+	@Override
+	public Integer updLastAct(WmgAdminActVo vo) {
+		return dao.updLastAct(vo);
+	}
+	
+}

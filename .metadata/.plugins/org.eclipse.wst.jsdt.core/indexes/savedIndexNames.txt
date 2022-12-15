@@ -1,0 +1,1 @@
+INDEX VERSION 1.4+C:\workspace_rd\server_api\gradle\set_app\.metadata\.plugins\org.eclipse.wst.jsdt.core\indexes

@@ -1,0 +1,554 @@
+package com.itsone.igm.contr;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonObject;
+import com.itsone.igm.contr.err.ExpectedException;
+import com.itsone.igm.contr.err.ResponseType;
+import com.itsone.igm.contr.push.FirebaseCloudMessageService;
+import com.itsone.igm.contr.push.NotifCntr;
+import com.itsone.igm.data.TicketItem;
+import com.itsone.igm.data.json_item.EmplItem;
+import com.itsone.igm.define.Define;
+import com.itsone.igm.helper.DataHelper;
+import com.itsone.igm.security.utils.TokenUtils;
+import com.itsone.igm.service.EmplInfoService;
+import com.itsone.igm.service.EmplLoginService;
+import com.itsone.igm.service.PushService;
+import com.itsone.igm.utility.CommonUtil;
+import com.itsone.igm.service.KeyService;
+import com.itsone.igm.vo.AdmPiVo;
+import com.itsone.igm.vo.EmplOptVo;
+import com.itsone.igm.vo.EmplOptWebVo;
+import com.itsone.igm.vo.EmplVo;
+import com.itsone.igm.vo.PushSendInfoVo;
+
+import okhttp3.Response;
+
+@Controller
+@RequestMapping("/igm/")
+public class LoginEmplAppCntr {
+	
+	@SuppressWarnings("unused")
+	private static final Logger logger = LoggerFactory.getLogger(LoginEmplAppCntr.class);
+	
+	private final String[] optVals = {"Y", "5000", "N", "Y", "0", "0", "Y", "N", "N", "N", "0", "N", "N", "20"};
+	private final String[] optValWebs = {"Y", "5000", "N", "Y", "0", "0", "Y", "N", "N", "N", "0", "N", "N", "20"};
+
+	@Autowired private EmplLoginService loginService;
+	@Autowired private EmplInfoService emplService;
+	@Autowired private PushService pushService;
+	@Autowired private NotifCntr notiController;
+	@Autowired private KeyService keyService;
+	
+	@RequestMapping("as/req_login")
+	@ResponseBody
+	public Object reqLogin(HttpServletRequest request) {
+		TicketItem tKey = keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String tel = request.getParameter("tel");
+		String pwd = request.getParameter("pwd");
+		String updTime = request.getParameter("updTime");
+		
+		if (updTime == null 
+				|| CommonUtil.isEmpty(tel) || CommonUtil.isEmpty(pwd)
+				|| tKey == null || tKey.getDevId().isEmpty()
+				|| (!tKey.getDevType().equalsIgnoreCase("A")
+						&& !tKey.getDevType().equalsIgnoreCase("I")
+						&& !tKey.getDevType().equalsIgnoreCase("W"))) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		vo.setEmplTel(tel);
+		if (tKey.getDevType().equalsIgnoreCase("W")) {
+			vo.setEmplWcmYn("Y");
+		}
+		
+		EmplVo retVo = loginService.selEmplInfoYn(vo);
+		if (retVo != null && !retVo.getEmplCd().isEmpty()) {
+			if (retVo.getEmplPwValue().equals(pwd)) {
+				if (tKey.getDevType().equalsIgnoreCase("W") || retVo.getEmplDevId().equals(tKey.getDevId())) {
+					EmplVo retEmplInfo = loginService.selEmplInfo(retVo);
+					if (retEmplInfo == null) {
+						throw ExpectedException.FAIL_ERR_GEN_NOR;
+					}
+					
+					if (tKey.getDevType().equalsIgnoreCase("W")) {
+						retVo.setEmplDevType(tKey.getDevType());
+						retVo.setEmplDevId(tKey.getDevId());
+					}
+					
+					retEmplInfo.setEmplToken(TokenUtils.genToken(retVo));
+					retEmplInfo.setEmplCertToken(null);
+					retEmplInfo.setEmplCertTokenExpireTime(null);
+					retEmplInfo.setEmplTel(null);
+					retEmplInfo.setEmplKey(retEmplInfo.getEmplPw()); // 추후 양방향으로 바꿔야함
+					retEmplInfo.setEmplPw(null);
+					retEmplInfo.setEmplUseYn(null);
+					retEmplInfo.setEmplUnusedUpdtime(null);
+					retEmplInfo.setInputStaff(null);
+					retEmplInfo.setInputDatetime(null);
+					retEmplInfo.setInputIp(null);
+					retEmplInfo.setUpdateStaff(null);
+					retEmplInfo.setUpdateDatetime(null);
+					retEmplInfo.setUpdateIp(null);
+					
+					Date date = null;
+					try { date = DataHelper.inst().trsFormatMid.parse(updTime); } catch (Exception e) {}
+					
+					if (tKey.getDevType().equalsIgnoreCase("W")) {
+						EmplOptWebVo optVo = new EmplOptWebVo();
+						optVo.setEmplCd(retEmplInfo.getEmplCd());
+						optVo.setEmplAccIp(tKey.getDevId());
+						
+						List<EmplOptWebVo> emplOptWebs = loginService.selEmplOptWebs(optVo);
+						
+						if (emplOptWebs == null || emplOptWebs.size() == 0) {
+							
+							for (int i = 0; i < optValWebs.length; i++) {
+								EmplOptWebVo optWeb = new EmplOptWebVo();
+								optWeb.setEmplCd(retEmplInfo.getEmplCd());
+								optWeb.setEmplAccIp(tKey.getDevId());
+								optWeb.setEowCd(String.format("%02d", i));
+								optWeb.setEowVal(optVals[i]);
+								
+								if (optWeb.getEowCd().equals("12") 
+										&& retEmplInfo.getCoDiv().equals("919")) { // 엑스필드 예외
+									optWeb.setEowVal("Y");
+								}
+								
+								String ret = emplService.selEmplOptWeb(optWeb);
+								if (CommonUtil.isEmpty(ret)) {
+									emplService.insEmplOptWeb(optWeb);
+								} else {
+									emplService.updEmplOptWeb(optWeb);
+								}
+							}
+							
+							emplOptWebs = loginService.selEmplOptWebs(optVo);
+						}
+						
+						return new EmplItem(ResponseType.SUCCESS, null, null, retEmplInfo, null, emplOptWebs);
+					} else {
+						EmplOptVo optVo = new EmplOptVo();
+						optVo.setEmplCd(retEmplInfo.getEmplCd());
+						optVo.setUpdateDatetime(date);
+						
+						List<EmplOptVo> emplOpts = loginService.selEmplOpts(optVo);
+						
+						return new EmplItem(ResponseType.SUCCESS, null, null, retEmplInfo, emplOpts, null);	
+					}
+				} else {
+					throw ExpectedException.FAIL_NOT_MATCH_EMPL_AID;
+				}
+			} else {
+				throw ExpectedException.FAIL_NOT_MATCH_EMPL_PW;
+			}
+		} else {
+			throw ExpectedException.FAIL_NO_EMPL_INFO;
+		}
+	}
+	
+	@RequestMapping("as/req_login_ok")
+	@ResponseBody
+	public Object reqLoginOk(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplTel = request.getParameter("emplTel");
+		String emplPw = request.getParameter("emplPw");
+		if (emplTel == null || emplTel.isEmpty()
+				|| emplPw == null || emplPw.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		vo.setEmplTel(emplTel);
+		vo.setEmplPw(emplPw);
+		
+		Integer ret = loginService.selLoginOk(vo);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	@RequestMapping("as/req_auto_login")
+	@ResponseBody
+	public Object reqAutoLogin(HttpServletRequest request) {
+		TicketItem tKey = keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String tel = request.getParameter("tel");
+		String updTime = request.getParameter("updTime");
+		
+		if (updTime == null
+				|| CommonUtil.isEmpty(tel)
+				|| tKey == null || tKey.getDevType().isEmpty() || tKey.getDevId().isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		if (!tKey.getDevType().equalsIgnoreCase("W")) {
+			vo.setEmplDevType(tKey.getDevType());
+			vo.setEmplDevId(tKey.getDevId());	
+		}
+		vo.setEmplTel(tel);
+		
+		EmplVo retEmplInfo = loginService.selEmplInfo(vo);
+		if (retEmplInfo == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		if (tKey.getDevType().equalsIgnoreCase("W")) {
+			retEmplInfo.setEmplDevType(tKey.getDevType());
+			retEmplInfo.setEmplDevId(tKey.getDevId());
+		}
+		
+		retEmplInfo.setEmplToken(TokenUtils.genToken(retEmplInfo));
+		retEmplInfo.setEmplCertToken(null);
+		retEmplInfo.setEmplCertTokenExpireTime(null);
+		retEmplInfo.setEmplTel(null);
+		retEmplInfo.setEmplKey(retEmplInfo.getEmplPw()); // 추후 양방향으로 바꿔야함
+		retEmplInfo.setEmplPw(null);
+		retEmplInfo.setEmplUseYn(null);
+		retEmplInfo.setEmplUnusedUpdtime(null);
+		retEmplInfo.setInputStaff(null);
+		retEmplInfo.setInputDatetime(null);
+		retEmplInfo.setInputIp(null);
+		retEmplInfo.setUpdateStaff(null);
+		retEmplInfo.setUpdateDatetime(null);
+		retEmplInfo.setUpdateIp(null);
+		
+		Date date = null;
+		try { date = DataHelper.inst().trsFormatMid.parse(updTime); } catch (Exception e) { }
+		
+		if (tKey.getDevType().equalsIgnoreCase("W")) {
+			EmplOptWebVo optVo = new EmplOptWebVo();
+			optVo.setEmplCd(retEmplInfo.getEmplCd());
+			optVo.setEmplAccIp(tKey.getDevId());
+			
+			List<EmplOptWebVo> emplOptWebs = loginService.selEmplOptWebs(optVo);
+			
+			return new EmplItem(ResponseType.SUCCESS, null, null, retEmplInfo, null, emplOptWebs);
+		} else {
+			EmplOptVo optVo = new EmplOptVo();
+			optVo.setEmplCd(retEmplInfo.getEmplCd());
+			optVo.setUpdateDatetime(date);
+			
+			List<EmplOptVo> emplOpts = loginService.selEmplOpts(optVo);
+			
+			return new EmplItem(ResponseType.SUCCESS, null, null, retEmplInfo, emplOpts, null);	
+		}
+	}
+
+	
+	@RequestMapping("as/req_cert_code")
+	@ResponseBody
+	public Object reqCerti(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String devType = request.getParameter("devType");
+		String cgDiv = request.getParameter("cgDiv");
+		String coDiv = request.getParameter("coDiv");
+		String departCd = request.getParameter("departCd");
+		String name = request.getParameter("name");
+		String tel = request.getParameter("tel");
+		String push = request.getParameter("push");
+		
+		logger.info("req_cert_code devType : " + devType + ", cgDiv : " + cgDiv + ", coDiv : " + coDiv + ", departCd : " + departCd + ", name : " + name + ", tel : " + tel + ", push : " + push);		
+		
+		if ((CommonUtil.isEmpty(cgDiv) && CommonUtil.isEmpty(coDiv)) 
+				|| CommonUtil.isEmpty(tel) || CommonUtil.isEmpty(departCd)
+				|| CommonUtil.isEmpty(name) || CommonUtil.isEmpty(push)
+				|| CommonUtil.isEmpty(devType)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		if (!CommonUtil.isEmpty(cgDiv)) {
+			vo.setCgDiv(cgDiv);
+		} else {
+			vo.setCoDiv(coDiv);	
+		}
+		vo.setEmplDepartCd(departCd);
+		vo.setEmplName(name);
+		vo.setEmplTel(tel);
+		vo.setEmplDevType(devType);
+		
+		String retCd = loginService.selCertOk(vo);
+		if (retCd == null || retCd.isEmpty()) {
+			throw ExpectedException.FAIL_CERT_NOT_ENOUGH_INFO;
+		}
+		
+		vo.setEmplCd(retCd);
+		String certKey = TokenUtils.generateAuthNo4();
+		vo.setEmplCertToken(certKey);
+		
+		loginService.updCertInfo(vo);
+		
+		if (vo.getEmplCertTokenExprTime() == null) {
+			throw ExpectedException.FAIL_CERT_UPD_CD_FAIL;
+		}
+		
+		AdmPiVo admPiVo = new AdmPiVo();
+		admPiVo.setApiType(Define.Push.CD_PUSH_REQ_CERT_CD);
+		
+		AdmPiVo retPi = pushService.selAdmPushContents(admPiVo);
+		if (retPi == null) {
+			throw ExpectedException.FAIL_CERT_NO_MSG_PARAM;
+		}
+		
+		PushSendInfoVo spVo = new PushSendInfoVo();
+		spVo.setSendWhoType(Define.Erp.WHO_TYPE_EMPL);
+		spVo.setDevType(devType);
+		spVo.setTypeCd(Define.Push.CD_PUSH_REQ_CERT_CD);
+		spVo.setRefVal_1(vo.getEmplCertToken());
+		
+		spVo.setTitle(retPi.getApiTitle().replace("%n", certKey));
+		spVo.setMsg(retPi.getApiMsg().replace("%n", certKey));
+		
+		ArrayList<String> keys = new ArrayList<>();
+		keys.add(push);
+		
+		spVo.setKeys(keys);
+		
+		ResponseEntity<String> retPushAos = null;
+		Response retPushIos = null; 
+		try {
+			
+			if (spVo.getDevType().equalsIgnoreCase("I")) {
+				FirebaseCloudMessageService msgService = new FirebaseCloudMessageService(new ObjectMapper());
+				
+				retPushIos = msgService.sendMessageTo(push, spVo.getTitle(), spVo.getMsg());
+				if (retPushIos != null) {
+					logger.info("sendMessageTo response.body().string() : " + retPushIos.body().string());	
+				}
+			} else {
+				// 추후 결과 보고 리턴 처리
+				retPushAos = notiController.sendDirect(spVo);
+				
+				logger.info("req_cert_code retPushAos : " + retPushAos);	
+			}
+		} catch (InterruptedException e) {
+			throw ExpectedException.FAIL_CERT_NOTIF_FAIL;
+		} catch (IOException e) {
+			throw ExpectedException.FAIL_CERT_NOTIF_FAIL;
+		}
+		
+		if (retPushAos == null && retPushIos == null) {
+			throw ExpectedException.FAIL_CERT_NOTIF_FAIL;
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+
+		retJson.addProperty("emplCd", retCd);
+		retJson.addProperty("certDate", vo.getEmplCertTokenExprTime());
+        return retJson;
+	}
+	
+	@RequestMapping("as/req_cert_ok")
+	@ResponseBody
+	public Object reqCertOk(HttpServletRequest request) {
+		TicketItem tKey = keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplCd = request.getParameter("emplCd");
+		String certCd = request.getParameter("certCd");
+		String tVal = request.getParameter("tVal");
+		
+		
+		if (CommonUtil.isEmpty(emplCd)
+				|| CommonUtil.isEmpty(certCd) || CommonUtil.isEmpty(tVal)
+				|| tKey == null
+				|| CommonUtil.isEmpty(tKey.getDevType()) || CommonUtil.isEmpty(tKey.getDevId())) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		vo.setEmplCd(emplCd);
+		vo.setEmplCertToken(certCd);
+		vo.setEmplDevType(tKey.getDevType());
+		vo.setEmplDevId(tKey.getDevId());
+		vo.setEmplMsgId(tKey.getDevId() + tVal.substring(6,10));
+		
+		Integer ret = loginService.selMatchCertOk(vo);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_CERT_FAIL;
+		}
+		
+		ret = loginService.updEmplAosId(vo);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_CERT_FAIL;
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	@RequestMapping("as/check_phone")
+	@ResponseBody
+	public Object checkPhone(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+
+		String cgDiv = request.getParameter("cgDiv");
+		String coDiv = request.getParameter("coDiv");
+		String devType = request.getParameter("devType");
+		String devId = request.getParameter("devId");
+		String tel = request.getParameter("tel");
+		
+		if ((CommonUtil.isEmpty(coDiv) && CommonUtil.isEmpty(cgDiv))
+				|| CommonUtil.isEmpty(devType) || CommonUtil.isEmpty(devId)
+				|| CommonUtil.isEmpty(tel)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		if (CommonUtil.isEmpty(cgDiv)) {
+			vo.setCgDiv(cgDiv);	
+		} else {
+			vo.setCoDiv(coDiv);
+		}
+		vo.setEmplDevType(devType);
+		vo.setEmplDevId(devId);
+		vo.setEmplTel(tel);
+		
+		EmplVo ret = loginService.selEmplIsCertYn(vo);
+		if (ret == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("as/upd_pw_cert")
+	@ResponseBody
+	public Object updPwCert(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String cgDiv = request.getParameter("cgDiv");
+		String coDiv = request.getParameter("coDiv");
+		String departCd = request.getParameter("departCd");
+		String name = request.getParameter("name");
+		String tel = request.getParameter("tel");
+		String pwd = request.getParameter("pwd");
+		String updStaff = request.getParameter("updStaff");
+		String updIp = request.getParameter("updIp");
+		
+		if ((CommonUtil.isEmpty(cgDiv) && CommonUtil.isEmpty(coDiv))
+				|| CommonUtil.isEmpty(departCd) || CommonUtil.isEmpty(name)
+				|| CommonUtil.isEmpty(tel) || CommonUtil.isEmpty(pwd)
+				|| CommonUtil.isEmpty(updStaff) || CommonUtil.isEmpty(updIp)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		if (!CommonUtil.isEmpty(cgDiv)) {
+			vo.setCgDiv(cgDiv);
+		} else {
+			vo.setCoDiv(coDiv);	
+		}
+		vo.setEmplDepartCd(departCd);
+		vo.setEmplName(name);
+		vo.setEmplTel(tel);
+		vo.setEmplPw(pwd);
+		vo.setUpdateStaff(updStaff);
+		vo.setUpdateIp(updIp);
+		
+		String retCd = loginService.selCertOk(vo);
+		if (retCd == null || retCd.isEmpty()) {
+			throw ExpectedException.FAIL_CERT_NOT_ENOUGH_INFO;
+		}
+		
+		loginService.updPwCert(vo);
+		if (vo.getEmplPw() == null) {
+			throw ExpectedException.FAIL_CERT_UPD_PW_FAIL;
+		}
+		
+		for (int i = 0; i < optVals.length; i++) {
+			EmplOptVo opt = new EmplOptVo();
+			opt.setEmplCd(retCd);
+			opt.setEoCd(String.format("%02d", i));
+			opt.setEoVal(optVals[i]);
+			
+			if (opt.getEoCd().equals("12") && coDiv.equals("919")) { // 엑스필드 예외
+				opt.setEoVal("Y");
+			}
+			
+			String ret = emplService.selEmplOpt(opt);
+			if (CommonUtil.isEmpty(ret)) {
+				emplService.insEmplOpt(opt);
+			} else {
+				emplService.updEmplOpt(opt);
+			}
+		}
+		
+		return new EmplItem(ResponseType.SUCCESS, vo.getCoDiv(), vo.getEmplPw(), null, null, null);
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("as/upd_pw")
+	@ResponseBody
+	public Object updPw(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String cgDiv = request.getParameter("cgDiv");
+		String coDiv = request.getParameter("coDiv");
+		String tel = request.getParameter("tel");
+		String pwd = request.getParameter("pwd");
+		String updStaff = request.getParameter("updStaff");
+		String updIp = request.getParameter("updIp");
+		
+		if ((CommonUtil.isEmpty(cgDiv) && CommonUtil.isEmpty(coDiv)) 
+				|| CommonUtil.isEmpty(tel) || CommonUtil.isEmpty(pwd)
+				|| CommonUtil.isEmpty(updStaff) || CommonUtil.isEmpty(updIp)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		if (!CommonUtil.isEmpty(cgDiv)) {
+			vo.setCoDiv(coDiv);
+		} else {
+			vo.setCoDiv(coDiv);	
+		}
+		vo.setEmplTel(tel);
+		vo.setEmplPw(pwd);
+		vo.setUpdateStaff(updStaff);
+		vo.setUpdateIp(updIp);
+		
+		String emplCd = loginService.selTelToEmplCd(vo);
+		if (CommonUtil.isEmpty(emplCd)) {
+			
+			loginService.updPw(vo);
+			if (vo.getEmplPw() == null) {
+				throw ExpectedException.FAIL_CERT_UPD_PW_FAIL;
+			}
+			
+			return new EmplItem(ResponseType.SUCCESS, null, vo.getEmplPw(), null, null, null);
+		} else {
+			throw ExpectedException.FAIL_LOGIN_PW_EXIST;
+		}
+	}
+}

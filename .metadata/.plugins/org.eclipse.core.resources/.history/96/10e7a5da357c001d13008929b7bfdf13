@@ -1,0 +1,643 @@
+package com.itsone.igm.contr;
+
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.google.gson.JsonObject;
+import com.itsone.igm.contr.err.ExpectedException;
+import com.itsone.igm.contr.err.ResponseType;
+import com.itsone.igm.data.geo_item.GeoMath;
+import com.itsone.igm.data.geo_item.GeoPoint;
+import com.itsone.igm.data.json_item.WmgGiItem;
+import com.itsone.igm.data.json_item.WmgUpdCompData;
+import com.itsone.igm.data.json_item.WmgUpdCompItem;
+import com.itsone.igm.data.json_item.WmgUpdHoleItem;
+import com.itsone.igm.service.GiService;
+import com.itsone.igm.utility.CommonUtil;
+import com.itsone.igm.vo.Wmg0050Vo;
+import com.itsone.igm.vo.Wmg0100Vo;
+import com.itsone.igm.vo.Wmg0200Vo;
+import com.itsone.igm.vo.Wmg0201Vo;
+import com.itsone.igm.vo.Wmg0202Vo;
+import com.itsone.igm.vo.Wmg0203Vo;
+import com.itsone.igm.vo.Wmg0300Vo;
+import com.itsone.igm.vo.WmgAdminActVo;
+
+@RestController
+@RequestMapping("/igm/")
+public class GiCntr {
+	
+	@SuppressWarnings("unused")
+	private static final Logger logger = LoggerFactory.getLogger(GiCntr.class);
+	
+	@Autowired private GiService giService;
+
+	// 로그인 정보 불러오기
+	@RequestMapping("gi/req_login")
+	@ResponseBody
+	public Object req_login(HttpServletRequest request) {
+		
+		String tel = request.getParameter("tel");
+		String pwd = request.getParameter("pwd");
+		
+		if (CommonUtil.isEmpty(tel) || CommonUtil.isEmpty(pwd)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+
+		WmgAdminActVo vo = new WmgAdminActVo();
+		vo.setAdmTel(tel);
+		vo.setAdmPw(pwd);
+		
+		WmgAdminActVo retWmgAdmAct = giService.selLoginInfo(vo);
+		if (retWmgAdmAct == null) {
+			throw ExpectedException.FAIL_NO_ADM_INFO;
+		}
+		
+		retWmgAdmAct.setAdmPw(retWmgAdmAct.getAdmPwValue());
+		retWmgAdmAct.setAdmPwValue(null);
+		
+		return new WmgGiItem(ResponseType.SUCCESS, retWmgAdmAct, null, null, null, null, null, null);
+	}
+	
+	// 업장 정보 불러오기
+	@RequestMapping("gi/req_comp_info")
+	@ResponseBody
+	public Object req_comp_info(HttpServletRequest request) {
+		
+		String coDiv = request.getParameter("coDiv");
+		
+		List<Wmg0050Vo> retWmg0050s = giService.selCompInfo(coDiv);
+		if (retWmg0050s.size() == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		for (Wmg0050Vo item : retWmg0050s) {
+			item.setCourData(giService.selCourNames(item.getCoDiv()));
+		}
+		
+		List<Wmg0300Vo> retWmg0300s = giService. selMoblies();
+		
+		return new WmgGiItem(ResponseType.SUCCESS, null, null, null, null, retWmg0050s, retWmg0300s, null);
+	}	
+	
+	// 코스 정보 불러오기
+	@RequestMapping("gi/req_cour_info")
+	@ResponseBody
+	public Object req_cour_info(HttpServletRequest request) {
+		String coDiv = request.getParameter("coDiv");
+		
+		if (CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		List<Wmg0100Vo> retWmg100s = giService.selCourInfos(coDiv);
+		
+		return new WmgGiItem(ResponseType.SUCCESS, null, null, retWmg100s, null, null, null, null);
+	}
+	
+	// 홀 정보 불러오기
+	@RequestMapping("gi/req_hole_info")
+	@ResponseBody
+	public Object req_hole_geo(HttpServletRequest request) {
+		
+		String coDiv = request.getParameter("coDiv");
+		String crsCd = request.getParameter("crsCd");
+		String holeNo = request.getParameter("holeNo");
+		String isInitStr = request.getParameter("isInit");
+		boolean isInit = false;
+		
+		if (CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		if (isInitStr != null && isInitStr.equalsIgnoreCase("Y")) {
+			isInit = true;
+		}
+		
+		Wmg0050Vo wmg050 = null;
+		
+		Wmg0200Vo vo = new Wmg0200Vo();
+		vo.setCoDiv(coDiv);
+		vo.setCrsCd(crsCd);
+		if (!CommonUtil.isEmpty(holeNo)) {
+			vo.setHoleNo(Integer.parseInt(holeNo));	
+		}
+		
+		List<Wmg0200Vo> retWmg200s = giService.selHoleInfos(vo);
+		for (Wmg0200Vo item : retWmg200s) {
+			Wmg0201Vo t1Vo = new Wmg0201Vo();
+			t1Vo.setCoDiv(item.getCoDiv());
+			t1Vo.setCrsCd(item.getCrsCd());
+			t1Vo.setHoleNo(item.getHoleNo());	
+			
+			item.setWmg201s(giService.selTeeInfos(t1Vo));
+			
+			if (!isInit) {
+				Wmg0202Vo t2Vo = new Wmg0202Vo();
+				t2Vo.setCoDiv(item.getCoDiv());
+				t2Vo.setCrsCd(item.getCrsCd());
+				t2Vo.setHoleNo(item.getHoleNo());	
+				
+				item.setWmg202s(giService.selDotInfos(t2Vo));	
+				
+				Wmg0203Vo t3Vo = new Wmg0203Vo();
+				t3Vo.setCoDiv(item.getCoDiv());
+				t3Vo.setCrsCd(item.getCrsCd());
+				t3Vo.setHoleNo(item.getHoleNo());	
+				
+				item.setWmg203s(giService.selAreaInfos(t3Vo));
+			}
+			
+			if (isInit) {
+				wmg050 = giService.selCoDivToCompInfo(vo.getCoDiv());
+				
+				GeoPoint whiteTee = null;
+				for (Wmg0201Vo teeItem : item.getWmg201s()) {
+					if (teeItem.getTeeClr().equalsIgnoreCase("#E8E8E8")) {
+						whiteTee = new GeoPoint(teeItem.getTeeGeoX(), teeItem.getTeeGeoY());
+						break;
+					}
+				}
+				
+				if (whiteTee != null) {
+					item.setPinDist((int)GeoMath.dist(whiteTee.getY(), whiteTee.getX(), 
+							item.getPinGeoY(), item.getPinGeoX(), "m"));					
+				} else {
+					item.setPinDist(0);
+				}
+				
+				if (item.getWmg201s() != null && item.getWmg201s().size() > 0) {
+					int size = item.getWmg201s().size();
+					
+					item.setFrontDist((int)GeoMath.dist(item.getWmg201s().get(0).getTeeGeoY(), 
+							item.getWmg201s().get(0).getTeeGeoX(), item.getPinGeoY(), item.getPinGeoX(), "m"));
+					item.setBackDist((int)GeoMath.dist(item.getWmg201s().get(size - 1).getTeeGeoY(), 
+							item.getWmg201s().get(size - 1).getTeeGeoX(), item.getPinGeoY(), item.getPinGeoX(), "m"));
+				} else {
+					item.setFrontDist(0);
+					item.setBackDist(0);
+				}
+				
+				item.setTlLaY(0.0d);
+				item.setTlLoX(0.0d);
+				item.setTrLaY(0.0d);
+				item.setTrLoX(0.0d);
+				item.setBlLaY(0.0d);
+				item.setBlLoX(0.0d);
+				item.setBrLaY(0.0d);
+				item.setBrLoX(0.0d);
+				
+				item.setCenterGeoY(0.0d);
+				item.setCenterGeoX(0.0d);
+				
+				item.setRotate(0.0d);
+				item.setZoomW(0);
+				item.setZoomN(0.0);
+				
+				item.setPinGeoY(0.0d);
+				item.setPinGeoX(0.0d);
+				
+				item.setIpFGeoY(0.0d);
+				item.setIpFGeoX(0.0d);
+				
+				item.setIpSGeoY(0.0d);
+				item.setIpSGeoX(0.0d);
+				
+				item.setIpTGeoY(0.0d);
+				item.setIpTGeoX(0.0d);
+				
+				for (Wmg0201Vo teeItem : item.getWmg201s()) {
+					teeItem.setTeeGeoX(0.0d);
+					teeItem.setTeeGeoY(0.0d);
+				}
+			} else {
+				item.setCrsName("");
+				item.setHoleNoNm("");
+				item.setHoleExpl("");
+				
+				for (Wmg0201Vo teeItem : item.getWmg201s()) {
+					teeItem.setTeeNm("");
+				}
+			}
+		}
+		
+		return new WmgGiItem(ResponseType.SUCCESS, null, wmg050, null, retWmg200s, null, null, null);
+	}
+	
+	// 홀 정보 불러오기
+	@RequestMapping("gi/req_comp_detail_info")
+	@ResponseBody
+	public Object req_comp_detail_info(HttpServletRequest request) {
+		
+		String coDiv = request.getParameter("coDiv");
+		String crsCd = request.getParameter("crsCd");
+		String holeNo = request.getParameter("holeNo");
+		
+		if (CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Wmg0200Vo vo = new Wmg0200Vo();
+		vo.setCoDiv(coDiv);
+		vo.setCrsCd(crsCd);
+		if (!CommonUtil.isEmpty(holeNo)) {
+			vo.setHoleNo(Integer.parseInt(holeNo));	
+		}
+		
+		List<Wmg0200Vo> retWmg200s = giService.selHoleInfos(vo);
+		for (Wmg0200Vo item : retWmg200s) {
+			Wmg0201Vo t1Vo = new Wmg0201Vo();
+			t1Vo.setCoDiv(item.getCoDiv());
+			t1Vo.setCrsCd(item.getCrsCd());
+			t1Vo.setHoleNo(item.getHoleNo());	
+			
+			item.setWmg201s(giService.selTeeInfos(t1Vo));
+			
+			Wmg0202Vo t2Vo = new Wmg0202Vo();
+			t2Vo.setCoDiv(item.getCoDiv());
+			t2Vo.setCrsCd(item.getCrsCd());
+			t2Vo.setHoleNo(item.getHoleNo());	
+			
+			item.setWmg202s(giService.selDotInfos(t2Vo));
+			
+			Wmg0203Vo t3Vo = new Wmg0203Vo();
+			t3Vo.setCoDiv(item.getCoDiv());
+			t3Vo.setCrsCd(item.getCrsCd());
+			t3Vo.setHoleNo(item.getHoleNo());	
+			
+			item.setWmg203s(giService.selAreaInfos(t3Vo));
+		}
+		
+		return new WmgGiItem(ResponseType.SUCCESS, null, null, null, retWmg200s, null, null, null);
+	}
+	
+	// 홀 인식 영역 정보 불러오기
+	@RequestMapping("gi/req_area_info")
+	@ResponseBody
+	public Object req_area_info(HttpServletRequest request) {
+		
+		String coDiv = request.getParameter("coDiv");
+		
+		if (CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		List<Wmg0203Vo> retWmg203s = giService.selCoToAreaInfos(coDiv);
+		
+		return new WmgGiItem(ResponseType.SUCCESS, null, null, null, null, null, null, retWmg203s);
+	}	
+	
+	// 클럽 정보 생성 및 업데이트 
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/upd_comp_info")
+	@ResponseBody
+	public Object upd_comp_info(HttpServletRequest request, @RequestBody WmgUpdCompData item) {
+		
+		for (WmgUpdCompItem coItem : item.getCompData()) {
+			if (CommonUtil.isEmpty(coItem.getCompInfo().getCoDiv())) {
+				throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+			}
+			
+			int ret = 0;
+			int existComp = giService.selExistCompInfo(coItem.getCompInfo().getCoDiv());
+			if (existComp > 0) {
+				ret = giService.updCompInfo(coItem.getCompInfo());
+			} else {
+				ret = giService.insCompInfo(coItem.getCompInfo());
+			}
+			
+			if (ret > 0) {
+				int ret1 = 1;
+				for (Wmg0100Vo vo : coItem.getCourData()) {
+					int existCrs = giService.selExistCourInfo(vo);
+					
+					if (existCrs > 0) {
+						if (giService.updCourInfo(vo) == 0) ret1 = 0;
+					} else {
+						// 추후 계산
+						
+						vo.setCenterGeoX(0.0);
+						vo.setCenterGeoY(0.0);
+						vo.setRotate(0.0);
+						
+						if (giService.insCourInfo(vo) == 0) ret1 = 0;
+					}
+				}
+				
+				if (ret1 == 0) throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+			} else {
+				throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+			}
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	// 코스 정보 생성 및 업데이트 
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/upd_crs_info")
+	@ResponseBody
+	public Object upd_crs_info(HttpServletRequest request, @RequestBody WmgUpdCompItem item) {
+		
+		for (Wmg0100Vo crsItem : item.getCourData()) {
+			if (CommonUtil.isEmpty(crsItem.getCoDiv()) || CommonUtil.isEmpty(crsItem.getCrsCd())) {
+				throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+			}
+
+			int ret = 0;
+			int existCrs = giService.selExistCourInfo(crsItem);
+			if (existCrs > 0) {
+				ret = giService.updCourInfo(crsItem);
+			}
+			
+			if (existCrs == 0 || ret == 0) throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	// 홀 정보 생성 및 업데이트 
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/upd_hole_info")
+	@ResponseBody
+	public Object upd_hole_info(HttpServletRequest request, @RequestBody WmgUpdHoleItem item) {
+		Wmg0200Vo vo = item.getHoleInfo();
+		
+		if (CommonUtil.isEmpty(vo.getCoDiv()) 
+				&& CommonUtil.isEmpty(vo.getCrsCd()) && CommonUtil.isEmpty(vo.getHoleNo())) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		if (vo.getPar() != null) {
+			if (vo.getPar() == 3) {
+				vo.setIpZGeoX(0.0);
+				vo.setIpZGeoY(0.0);
+				vo.setIpFGeoX(0.0);
+				vo.setIpFGeoY(0.0);
+				vo.setIpSGeoX(0.0);
+				vo.setIpSGeoY(0.0);
+			} else if (vo.getPar() == 4) {
+				vo.setIpSGeoX(0.0);
+				vo.setIpSGeoY(0.0);
+			}
+		}
+		
+//		if (!CommonUtil.isEmpty(vo.getTlLaY()) && !CommonUtil.isEmpty(vo.getTlLoX())
+//				&& !CommonUtil.isEmpty(vo.getTrLaY()) && !CommonUtil.isEmpty(vo.getTrLoX())
+//				&& !CommonUtil.isEmpty(vo.getBlLaY()) && !CommonUtil.isEmpty(vo.getBlLoX())
+//				&& !CommonUtil.isEmpty(vo.getBrLaY()) && !CommonUtil.isEmpty(vo.getBrLoX())) {
+//			
+//			if (vo.getTlLaY() != 0.0 && vo.getTlLoX() != 0.0
+//					&& vo.getTrLaY() != 0.0 && vo.getTrLoX() != 0.0
+//					&& vo.getBlLaY() != 0.0 && vo.getBlLoX() != 0.0
+//					&& vo.getBrLaY() != 0.0 && vo.getBrLoX() != 0.0) {
+//				List<GeoPoint> geos= new ArrayList<>();
+//				GeoPoint geo = new GeoPoint(vo.getTlLoX(), vo.getTlLaY());
+//				geos.add(geo);
+//				geo = new GeoPoint(vo.getTrLoX(), vo.getTrLaY());
+//				geos.add(geo);
+//				geo = new GeoPoint(vo.getBrLoX(), vo.getBrLaY());
+//				geos.add(geo);
+//				geo = new GeoPoint(vo.getBlLoX(), vo.getBlLaY());
+//				geos.add(geo);
+//				
+//				GeoPoint centP = GeoMath.getCentRect(geos);
+//				vo.setCenterGeoX(centP.getX());
+//				vo.setCenterGeoY(centP.getY());
+//				
+//				vo.setRotate(GeoMath.getAngle(geos.get(0), geos.get(3)));
+//				
+//				List<GeoPoint> calcGeos = GeoMath.getRecToRaRect(270 - vo.getRotate(), geos, centP);
+//				
+//				vo.setTlLaY(calcGeos.get(0).getY());
+//				vo.setTlLoX(calcGeos.get(0).getX());
+//				vo.setTrLaY(calcGeos.get(1).getY());
+//				vo.setTrLoX(calcGeos.get(1).getX());
+//				vo.setBrLaY(calcGeos.get(2).getY());
+//				vo.setBrLoX(calcGeos.get(2).getX());
+//				vo.setBlLaY(calcGeos.get(3).getY());
+//				vo.setBlLoX(calcGeos.get(3).getX());
+//			} else {
+//				vo.setCenterGeoX(0.0);
+//				vo.setCenterGeoY(0.0);
+//				
+//				vo.setRotate(0.0);
+//				
+//				vo.setTlLaY(0.0);
+//				vo.setTlLoX(0.0);
+//				vo.setTrLaY(0.0);
+//				vo.setTrLoX(0.0);
+//				vo.setBrLaY(0.0);
+//				vo.setBrLoX(0.0);
+//				vo.setBlLaY(0.0);
+//				vo.setBlLoX(0.0);
+//			}
+//		}
+		
+		int ret = 0;
+		int existHole = giService.selExistHoleInfo(vo);
+		
+		if (existHole > 0) {
+			ret = giService.updHoleInfo(vo);
+		} else {
+			if (vo.getHoleNoNm() == null) vo.setHoleNoNm("");
+			
+			if (vo.getPinGeoY() == null) vo.setPinGeoY(0.0);
+			if (vo.getPinGeoX() == null) vo.setPinGeoX(0.0);
+
+			if (vo.getIpZGeoY() == null) vo.setIpZGeoY(0.0);
+			if (vo.getIpZGeoX() == null) vo.setIpZGeoX(0.0);
+			
+			if (vo.getIpFGeoY() == null) vo.setIpFGeoY(0.0);
+			if (vo.getIpFGeoX() == null) vo.setIpFGeoX(0.0);
+			
+			if (vo.getIpSGeoY() == null) vo.setIpSGeoY(0.0);
+			if (vo.getIpSGeoX() == null) vo.setIpSGeoX(0.0);
+			
+			if (vo.getZoomW() == null) vo.setZoomW(3);
+			if (vo.getZoomN() == null) vo.setZoomN(16.2);
+
+			if (vo.getHoleExpl() == null) vo.setHoleExpl("");
+			
+			ret = giService.insHoleInfo(vo);
+		}
+		
+		if (ret == 0) throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+		
+		List<Wmg0201Vo> tees = item.getTees();
+		if (tees != null && tees.size() > 0) {
+			giService.removTeeInfo(tees.get(0));
+			
+			for (Wmg0201Vo teeItem : tees) {
+				if (giService.updTeeInfo(teeItem) == 0) giService.insTeeInfo(teeItem);
+			}
+		}
+
+		List<Wmg0202Vo> dots = item.getDots();
+		if (dots != null && dots.size() > 0) {
+			giService.removDotInfo(dots.get(0));
+			
+			for (Wmg0202Vo dotItem : dots) {
+				if (giService.updDotInfo(dotItem) == 0) giService.insDotInfo(dotItem);
+			}
+		}
+
+		List<Wmg0203Vo> areas = item.getAreas();
+		if (areas != null && areas.size() > 0) {
+			giService.removAreaInfo(areas.get(0));
+			
+			for (Wmg0203Vo areaItem : areas) {
+				if (giService.updAreaInfo(areaItem) == 0) giService.insAreaInfo(areaItem);
+			}
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	
+	// 티, 닷, 홀인식 영역 정보 생성 및 업데이트 
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/upd_point_info")
+	@ResponseBody
+	public Object upd_point_info(HttpServletRequest request, @RequestBody WmgUpdHoleItem item) {
+		
+		List<Wmg0201Vo> tees = item.getTees();
+		if (tees != null && tees.size() > 0) {
+			giService.removTeeInfo(tees.get(0));
+			
+			for (Wmg0201Vo teeItem : tees) {
+				if (giService.updTeeInfo(teeItem) == 0) giService.insTeeInfo(teeItem);
+			}
+		}
+		
+		List<Wmg0202Vo> dots = item.getDots();
+		if (dots != null && dots.size() > 0) {
+			giService.removDotInfo(dots.get(0));
+			
+			for (Wmg0202Vo dotItem : dots) {
+				if (giService.updDotInfo(dotItem) == 0) giService.insDotInfo(dotItem);
+			}
+		}
+		
+		List<Wmg0203Vo> areas = item.getAreas();
+		if (areas != null && areas.size() > 0) {
+			giService.removAreaInfo(areas.get(0));
+			
+			for (Wmg0203Vo areaItem : areas) {
+				if (giService.updAreaInfo(areaItem) == 0) giService.insAreaInfo(areaItem);
+			}
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	// 티 정보 삭제(unused) 
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/remov_tee_info")
+	@ResponseBody
+	public Object remov_tee_info(HttpServletRequest request, @RequestBody Wmg0201Vo vo) {
+		
+		if (CommonUtil.isEmpty(vo.getCoDiv()) 
+				&& CommonUtil.isEmpty(vo.getCrsCd()) && CommonUtil.isEmpty(vo.getHoleNo())) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		int ret = 0;
+		ret = giService.removTeeInfo(vo);
+
+		if (ret == 0) throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	// 닷 정보 삭제(unused)
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/remov_dot_info")
+	@ResponseBody
+	public Object remov_dot_info(HttpServletRequest request, @RequestBody Wmg0202Vo vo) {
+		
+		if (CommonUtil.isEmpty(vo.getCoDiv()) 
+				&& CommonUtil.isEmpty(vo.getCrsCd()) && CommonUtil.isEmpty(vo.getHoleNo())) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		int ret = 0;
+		ret = giService.removDotInfo(vo);
+
+		if (ret == 0) throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	// 홀 인식 영역 정보 삭제(unused)
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/remov_area_info")
+	@ResponseBody
+	public Object remov_area_info(HttpServletRequest request, @RequestBody Wmg0203Vo vo) {
+		
+		if (CommonUtil.isEmpty(vo.getCoDiv()) 
+				&& CommonUtil.isEmpty(vo.getCrsCd()) && CommonUtil.isEmpty(vo.getHoleNo())) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		int ret = 0;
+		ret = giService.removAreaInfo(vo);
+
+		if (ret == 0) throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	// 유저의 마지막 액션 정보(추후 사용)
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("gi/upd_last_act")
+	@ResponseBody
+	public Object upd_last_act(HttpServletRequest request, @RequestBody WmgAdminActVo vo) {
+		
+		if (CommonUtil.isEmpty(vo.getAdmCd()) || CommonUtil.isEmpty(vo.getAdmPw())) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+
+		int ret = 0;
+		
+		int existAdm = giService.selExistAdmCd(vo.getAdmCd());
+		if (existAdm > 0) {
+			ret = giService.updLastAct(vo);
+		} else {
+			ret = giService.insLastAct(vo);
+		}
+		
+		if (ret == 0) {
+			throw ExpectedException.FAIL_COMMON_UPDATE_FAIL;
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+}

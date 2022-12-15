@@ -1,0 +1,65 @@
+package com.itsone.igm.service;
+
+import java.util.List;
+
+import com.itsone.igm.vo.Wmg0050Vo;
+import com.itsone.igm.vo.Wmg0100Vo;
+import com.itsone.igm.vo.Wmg0200Vo;
+import com.itsone.igm.vo.Wmg0201Vo;
+import com.itsone.igm.vo.Wmg0202Vo;
+import com.itsone.igm.vo.Wmg0203Vo;
+import com.itsone.igm.vo.Wmg0300Vo;
+import com.itsone.igm.vo.WmgAdminActVo;
+
+public interface GiService {
+	public WmgAdminActVo selLoginInfo(WmgAdminActVo vo);
+	
+	public List<Wmg0050Vo> selCompInfo(String val);
+	public Wmg0050Vo selCoDivToCompInfo(String val);
+	
+	public List<Wmg0100Vo> selCourInfos(String val);
+	public List<Wmg0100Vo> selCourNames(String val);
+	public List<Wmg0200Vo> selHoleInfos(Wmg0200Vo vo);
+	public List<Wmg0300Vo> selMoblies();
+	
+	public Integer selExistCompInfo(String val);
+
+	public Integer insCompInfo(Wmg0050Vo vo);
+	public Integer updCompInfo(Wmg0050Vo vo);
+	
+	public Integer selExistCourInfo(Wmg0100Vo vo);
+	
+	public Integer insCourInfo(Wmg0100Vo vo);
+	public Integer updCourInfo(Wmg0100Vo vo);
+	
+	public Integer insCourInfos(List<Wmg0100Vo> list);
+	public Integer updCourInfos(List<Wmg0100Vo> list);
+
+	public Integer selExistHoleInfo(Wmg0200Vo vo);
+	
+	public Integer insHoleInfo(Wmg0200Vo vo);
+	public Integer updHoleInfo(Wmg0200Vo vo);
+	
+	public List<Wmg0201Vo> selTeeInfos(Wmg0201Vo vo);
+	public Integer insTeeInfo(Wmg0201Vo vo);
+	public Integer updTeeInfo(Wmg0201Vo vo);
+	public Integer removTeeInfo(Wmg0201Vo vo);
+	
+	public List<Wmg0202Vo> selDotInfos(Wmg0202Vo vo);
+	public Integer insDotInfo(Wmg0202Vo vo);
+	public Integer updDotInfo(Wmg0202Vo vo);
+	public Integer removDotInfo(Wmg0202Vo vo);
+
+	public List<Wmg0203Vo> selAreaInfos(Wmg0203Vo vo);
+	public Integer insAreaInfo(Wmg0203Vo vo);
+	public Integer updAreaInfo(Wmg0203Vo vo);
+	public Integer removAreaInfo(Wmg0203Vo vo);
+	
+	public List<Wmg0203Vo> selCoToAreaInfos(String cdz);
+	
+	public Integer selExistAdmCd(String val);
+	
+	public Integer insLastAct(WmgAdminActVo vo);
+	public Integer updLastAct(WmgAdminActVo vo);
+	
+}

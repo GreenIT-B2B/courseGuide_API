@@ -1,0 +1,570 @@
+package com.itsone.igm.contr;
+
+
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.google.gson.JsonObject;
+import com.itsone.igm.contr.err.ExpectedException;
+import com.itsone.igm.contr.err.ResponseType;
+import com.itsone.igm.data.json_item.EmplNotilItem;
+import com.itsone.igm.define.Define;
+import com.itsone.igm.data.json_item.EmplFavMsgItem;
+import com.itsone.igm.data.json_item.EmplItem;
+import com.itsone.igm.data.json_item.MessagelItem;
+import com.itsone.igm.helper.DataHelper;
+import com.itsone.igm.service.EmplInfoService;
+import com.itsone.igm.service.KeyService;
+import com.itsone.igm.utility.CommonUtil;
+import com.itsone.igm.vo.EmplFavMsgVo;
+import com.itsone.igm.vo.EmplNotiVo;
+import com.itsone.igm.vo.EmplOptVo;
+import com.itsone.igm.vo.EmplVo;
+import com.itsone.igm.vo.Gg0100Vo;
+
+@RestController
+@RequestMapping("/igm/")
+public class EmplAppCntr {
+	
+	private static final Logger logger = LoggerFactory.getLogger(EmplAppCntr.class);
+	
+	@Autowired private EmplInfoService emplService;
+	@Autowired private KeyService keyService;
+	
+	@RequestMapping("as/req_empl_snap")
+	@ResponseBody
+	public Object reqEmplSnap(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplCd = request.getParameter("emplCd");
+		
+		if (emplCd == null || emplCd.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo emplVo = emplService.selEmplSnap(emplCd);
+		if (emplVo == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		return new EmplItem(ResponseType.SUCCESS, null, null, emplVo, null);
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping("as/upd_empl_photo_url")
+	@ResponseBody
+	public Object updEmplPhotoUrl(HttpServletRequest request) {
+		
+		String emplCd = request.getParameter("emplCd");
+		String photoUrl = request.getParameter("photoUrl");
+		String photoThumbUrl = request.getParameter("photoThumbUrl");
+		String updStaff = request.getParameter("updStaff");
+		String updIp = request.getParameter("updIp");
+		
+		if (emplCd == null || emplCd.isEmpty() 
+				|| updStaff == null || updStaff.isEmpty() 
+				|| updIp == null || updIp.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplVo vo = new EmplVo();
+		vo.setEmplCd(emplCd);
+		if (photoUrl == null || photoThumbUrl == null) {
+			vo.setEmplPhotoUrl("");
+			vo.setEmplPhotoThumbUrl("");
+		} else {
+			vo.setEmplPhotoUrl(photoUrl);
+			vo.setEmplPhotoThumbUrl(photoThumbUrl);
+		}
+
+		vo.setUpdateStaff(updStaff);
+		vo.setUpdateIp(updIp);
+		
+		
+		int ret = emplService.updEmplPhotoUrl(vo);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;	
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	
+	@RequestMapping("as/req_new_noti_yn")
+	@ResponseBody
+	public Object reqNewNotiYn(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplCd = request.getParameter("emplCd");
+		
+		if (emplCd == null || emplCd.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		int ret = emplService.selNewNotiYn(emplCd);
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+		if (ret > 0) {
+			retJson.addProperty("newNotiYn", "Y");	
+		} else {
+			retJson.addProperty("newNotiYn", "N");
+		}
+		
+        return retJson;
+	}
+	
+	@RequestMapping("as/req_empl_notis")
+	@ResponseBody
+	public Object reqUserNotis(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplCd = request.getParameter("emplCd");
+		String pOffset = request.getParameter("pageOffset");
+		String pLimit = request.getParameter("pageLimit");
+		
+		if (pOffset == null || pOffset.isEmpty()
+				|| pLimit == null || pLimit.isEmpty()
+				|| emplCd == null || emplCd.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplNotiVo vo = new EmplNotiVo();
+		vo.setEmplCd(emplCd);
+		vo.setPageOffset(Integer.parseInt(pOffset));
+		vo.setPageLimit(Integer.parseInt(pLimit));
+		
+		EmplNotiVo notice = null;
+		if (vo.getPageOffset() == 0) notice = emplService.selNotiNotice();
+		
+		List<EmplNotiVo> notis = emplService.selEmplNotis(vo);
+        
+        return new EmplNotilItem(ResponseType.SUCCESS, notice, notis);
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping(value="as/upd_noti_read_ok")
+	@ResponseBody
+	public Object updNotiReadOk(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String enCd = request.getParameter("enCd");
+		String updStaff = request.getParameter("updStaff");
+		String updIp = request.getParameter("updIp");
+
+		if (enCd == null || enCd.isEmpty()
+				|| updStaff == null || updStaff.isEmpty()
+				|| updIp == null || updIp.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplNotiVo vo = new EmplNotiVo();
+		vo.setEnCd(enCd);
+		vo.setUpdateStaff(updStaff);
+		vo.setUpdateIp(updIp);
+		
+		int ret = emplService.updNotiReadOk(vo);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;	
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	@RequestMapping("as/req_new_msg_yn")
+	@ResponseBody
+	public Object reqNewMsgYn(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String toNo = request.getParameter("toAppKey");
+		
+		if (toNo == null || toNo.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		int ret = emplService.selNewMsgYn(Integer.parseInt(toNo));
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+		if (ret > 0) {
+			retJson.addProperty("newMsgYn", "Y");	
+		} else {
+			retJson.addProperty("newMsgYn", "N");
+		}
+		
+        return retJson;
+	}
+	
+	@RequestMapping("as/req_msg_centers")
+	@ResponseBody
+	public Object reqMsgCenters(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String toAppKey = request.getParameter("toAppKey");
+		String pOffset = request.getParameter("pageOffset");
+		String pLimit = request.getParameter("pageLimit");
+		
+		if (CommonUtil.isEmpty(pOffset) || CommonUtil.isEmpty(pLimit) || CommonUtil.isEmpty(toAppKey)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Gg0100Vo vo = new Gg0100Vo();
+		vo.setToAppKey(toAppKey);
+		vo.setPageOffset(Integer.parseInt(pOffset));
+		vo.setPageLimit(Integer.parseInt(pLimit));
+		
+		List<Gg0100Vo> msgs = emplService.selMsgCenters(vo);
+        
+        return new MessagelItem(ResponseType.SUCCESS, msgs, null);
+	}
+	
+	
+	@RequestMapping("as/req_empl_msgs")
+	@ResponseBody
+	public Object reqEmplFromMsgs(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String fromType = request.getParameter("fromType");
+		String fromNo = request.getParameter("fromNo");
+		String fromAppKey = request.getParameter("fromAppKey");
+		String toAppKey = request.getParameter("toAppKey");
+		String pOffset = request.getParameter("pageOffset");
+		String pLimit = request.getParameter("pageLimit");
+		
+		if (pOffset == null || pOffset.isEmpty()
+				|| pLimit == null || pLimit.isEmpty()
+				|| fromType == null || fromType.isEmpty()
+				|| toAppKey == null || toAppKey.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Gg0100Vo vo = new Gg0100Vo();
+		vo.setFromType(fromType);
+		if (fromNo != null && !fromNo.isEmpty()) vo.setFromNo(Integer.parseInt(fromNo));
+		vo.setFromAppKey(fromAppKey);
+		
+		vo.setToAppKey(toAppKey);
+		vo.setPageOffset(Integer.parseInt(pOffset));
+		vo.setPageLimit(Integer.parseInt(pLimit));
+		
+		List<Gg0100Vo> msgs = emplService.selMsgs(vo);
+        
+        return new MessagelItem(ResponseType.SUCCESS, msgs, null);
+	}
+	
+	
+	@RequestMapping("as/send_empl_msg")
+	@ResponseBody
+	public Object sendEmplMsg(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String sendDt = request.getParameter("sendDt");
+
+		String fromType = "A";
+		String fromAppKey = request.getParameter("fromAppKey");
+		String toType = request.getParameter("toType");
+		String toNo = request.getParameter("toNo");
+		String toAppKey = request.getParameter("toAppKey");
+		String msg = request.getParameter("msg");
+		String msgType = request.getParameter("msgType");
+		String msgUrl = request.getParameter("msgUrl");
+		
+		logger.info("sendEmplMsg >> coDiv : " + coDiv);
+		logger.info("sendEmplMsg >> sendDt : " + sendDt);
+		logger.info("sendEmplMsg >> fromType : " + fromType);
+		logger.info("sendEmplMsg >> fromAppKey : " + fromAppKey);
+		logger.info("sendEmplMsg >> toType : " + toType);
+		logger.info("sendEmplMsg >> toNo : " + toNo);
+		logger.info("sendEmplMsg >> toAppKey : " + toAppKey);
+		logger.info("sendEmplMsg >> msg : " + msg);
+		logger.info("sendEmplMsg >> msgType : " + msgType);
+		logger.info("sendEmplMsg >> msgUrl : " + msgUrl);
+		
+		if (coDiv == null || coDiv.isEmpty()
+				|| sendDt == null || sendDt.isEmpty()
+				|| fromType == null || fromType.isEmpty()
+				|| fromAppKey == null || fromAppKey.isEmpty()
+				|| msgType == null || msgType.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Gg0100Vo vo = new Gg0100Vo();
+		vo.setCoDiv(coDiv);
+		vo.setSendDt(sendDt);
+		
+		vo.setFromType(fromType);
+		vo.setFromNo(500);
+		vo.setFromAppKey(fromAppKey);
+		vo.setToType(toType);
+		vo.setToNo(500);
+		if (toType.equalsIgnoreCase("A")) {
+			vo.setToAppKey(toAppKey);	
+		} else {
+			if (toNo != null && !toNo.isEmpty()) {
+				vo.setToNo(Integer.parseInt(toNo));	
+			}
+		}
+		
+		vo.setMsgType(Integer.parseInt(msgType));
+		if (vo.getMsgType() == Define.Data.MESSAGE_TYPE_GEN) {
+			vo.setMessage(msg);
+		} else if (vo.getMsgType() == Define.Data.MESSAGE_TYPE_GEN) {
+			vo.setMsgUrl(msgUrl);
+		} else  {
+			vo.setMessage(msg);
+		}
+		
+		int ret = emplService.insMsg(vo);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;	
+		}
+		
+		String sendDateTiem = emplService.selLastMsgSendDateTime(vo);
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+		retJson.addProperty("sendDateTime", sendDateTiem);
+        return retJson;
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping(value="as/upd_msg_read_ok")
+	@ResponseBody
+	public Object updMsgReadOk(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String fromType = request.getParameter("fromType");
+		String fromNo = request.getParameter("fromNo");
+		String fromAppKey = request.getParameter("fromAppKey");
+		
+		if (coDiv == null || coDiv.isEmpty()
+				|| fromType == null || fromType.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Gg0100Vo vo = new Gg0100Vo();
+		vo.setCoDiv(coDiv);
+		vo.setFromType(fromType);
+		if (fromType.equalsIgnoreCase("A")) {
+			if (fromAppKey == null || fromAppKey.isEmpty()) {
+				throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+			}
+			vo.setFromAppKey(fromAppKey);
+		} else {
+			if (fromNo == null || fromNo.isEmpty()) {
+				throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+			}
+			vo.setFromNo(Integer.parseInt(fromNo));
+		}
+		
+		int ret = emplService.updMsgReadOk(vo);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;	
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping(value="as/upd_empl_opt")
+	@ResponseBody
+	public Object updEmplOpt(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplCd = request.getParameter("emplCd");
+		String eoCd = request.getParameter("eoCd");
+		String receivYn = request.getParameter("receivYn");
+
+		if (emplCd == null || emplCd.isEmpty()
+				|| eoCd == null || eoCd.isEmpty()
+				|| receivYn == null || receivYn.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplOptVo vo = new EmplOptVo();
+		vo.setEmplCd(emplCd);
+		vo.setEoCd(eoCd);
+		vo.setEoVal(receivYn);
+		
+		int ret = emplService.updEmplOpt(vo);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;	
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping(value="as/upd_empl_opts", method=RequestMethod.POST)
+	@ResponseBody
+	public Object updEmplOpts(HttpServletRequest request, @RequestBody List<EmplOptVo> list) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		if (list == null || list.size() == 0) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		int ret = emplService.updEmplOpts(list);
+		if (ret == 0) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;	
+		}
+		
+		JsonObject retJson = new JsonObject();
+		retJson.addProperty("success", ResponseType.SUCCESS);
+        return retJson;
+	}
+	
+	@RequestMapping("as/req_msg_usrs")
+	@ResponseBody
+	public Object reqMsgUsrs(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String emplCd = request.getParameter("emplCd");
+		String updTime = request.getParameter("updTime");
+		
+		if (coDiv == null || coDiv.isEmpty()
+				|| emplCd == null || emplCd.isEmpty()
+				|| updTime == null) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Date date = null;
+		try {
+			date = DataHelper.inst().trsFormatMid.parse(updTime);
+		} catch (Exception e) { }
+		
+		
+		EmplVo vo = new EmplVo();
+		vo.setCoDiv(coDiv);
+		vo.setEmplCd(emplCd);
+		vo.setUpdateDatetime(date);
+		
+		List<EmplVo> usrs = emplService.selMsgEmpls(vo);
+        
+        return new MessagelItem(ResponseType.SUCCESS, null, usrs);
+	}
+	
+
+	@RequestMapping("as/req_empl_fav_msgs")
+	@ResponseBody
+	public Object reqEmplFavMsgs(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplCd = request.getParameter("emplCd");
+		String lastUpdTime = request.getParameter("lastUpdTime");
+		
+		if (CommonUtil.isEmpty(emplCd) || lastUpdTime == null) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Date date = null;
+		try { date = DataHelper.inst().trsFormatMid.parse(lastUpdTime); } catch (Exception e) { }
+		
+		EmplFavMsgVo vo = new EmplFavMsgVo();
+		vo.setEmplCd(emplCd);
+		vo.setUpdateDatetime(date);
+		
+		List<EmplFavMsgVo> favMsgs = emplService.selEmplFavMsgs(vo);
+        
+        return new EmplFavMsgItem(ResponseType.SUCCESS, null, null, favMsgs);
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping(value="as/upd_empl_fav_msg")
+	@ResponseBody
+	public Object updEmplFavMsg(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplCd = request.getParameter("emplCd");
+		String efmCd = request.getParameter("efmCd");
+		String efmMsg = request.getParameter("efmMsg");
+
+		if (emplCd == null || emplCd.isEmpty()
+				|| efmMsg == null || efmMsg.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplFavMsgVo vo = new EmplFavMsgVo();
+		vo.setEmplCd(emplCd);
+		vo.setEfmCd(efmCd);
+		vo.setEfmMsg(efmMsg);
+		
+		int retIns = 0;
+		int retUpd = 0;
+		if (efmCd == null) {
+			retIns = emplService.insEmplFavMsg(vo);
+		} else {
+			int exist = emplService.selEmplFavMsgYn(vo);
+			if (exist > 0) {
+				retUpd = emplService.updEmplFavMsg(vo);
+			} else {
+				retIns = emplService.insEmplFavMsg(vo);
+			}	
+		}
+		
+		if (retIns == 0 && retUpd == 0) throw ExpectedException.FAIL_ERR_GEN_NOR;
+		
+		EmplFavMsgVo retVo = null;
+		if (retIns > 0) {
+			retVo = emplService.selLastEmplFavMsgCd(emplCd);
+		}
+		
+		if (retVo != null) {
+			return new EmplFavMsgItem(ResponseType.SUCCESS, retVo.getEfmCd(), retVo.getUpdDatetime(), null);	
+		} else {
+			return new EmplFavMsgItem(ResponseType.SUCCESS, null, null, null);
+		}
+	}
+	
+	@Transactional(isolation=Isolation.READ_COMMITTED)
+	@RequestMapping(value="as/remov_empl_fav_msg")
+	@ResponseBody
+	public Object removEmplFavMsg(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String emplCd = request.getParameter("emplCd");
+		String efmCd = request.getParameter("efmCd");
+
+		if (emplCd == null || emplCd.isEmpty()
+				|| efmCd == null || efmCd.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		EmplFavMsgVo vo = new EmplFavMsgVo();
+		vo.setEmplCd(emplCd);
+		vo.setEfmCd(efmCd);
+		
+		int ret = emplService.removEmplFavMsg(vo);
+		if (ret == 0) throw ExpectedException.FAIL_ERR_GEN_NOR;
+		
+		
+		return new EmplFavMsgItem(ResponseType.SUCCESS, null, vo.getUpdDatetime(), null);
+	}
+	
+	
+	
+}

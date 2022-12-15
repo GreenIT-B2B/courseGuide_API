@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+	<settings>
+		<setting name="mapUnderscoreToCamelCase" value="true"/>
+		<setting name="callSettersOnNulls" value="true"/>
+		<setting name="jdbcTypeForNull" value="NULL"/>
+	</settings>
+
+	<typeAliases>
+		
+		<typeAlias type="com.itsone.igm.vo.Wmg0100Vo" alias="wmg0100Vo"/>
+		<typeAlias type="com.itsone.igm.vo.Wmg0200Vo" alias="wmg0200Vo"/>
+		<typeAlias type="com.itsone.igm.vo.Wmg0201Vo" alias="wmg0201Vo"/>
+		<typeAlias type="com.itsone.igm.vo.Wmg0202Vo" alias="wmg0202Vo"/>
+		<typeAlias type="com.itsone.igm.vo.WmgAdminActVo" alias="wmgAdmActVo"/>
+    </typeAliases>
+
+</configuration>

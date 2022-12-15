@@ -1,0 +1,51 @@
+package com.itsone.igm.contr.push;
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+
+import org.springframework.http.HttpEntity;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
+import org.springframework.http.converter.StringHttpMessageConverter;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.itsone.igm.define.Define;
+import com.itsone.igm.security.utils.HeaderRequestInterceptor;
+
+@Service
+public class NotifService {
+	private static final String fb_server_key_empl_aos="AAAAVrWznjU:APA91bEFG06_KzwbYI_zsKk-t0_fVdGtRP3g_3IVDOJVAEbeel-Cl5vAurDm-NRo272yXyaP6ESJsS0qieWqcxFxvCL0WUsSz5Fhky0PZueHuwl-nob48pc1J-mqh-MwYd1Gw1Xo7Jfv";
+	private static final String fb_server_key_adm_aos="AAAAubz_A8I:APA91bFIULmI2Rv4m_8jf_Ta1S6jAHrD9oaim8KnO70BUxFGFdLcKU1M8oMFOnhG7gAWgE1f21I0_Pe4ffx0lsu51thi9-pMvISNO4ryifC_JaNkcK3geiYWeolAVo8GqDppC5V2_vBv";
+
+	private static final String fb_server_key_empl_ios="AAAAVrWznjU:APA91bEFG06_KzwbYI_zsKk-t0_fVdGtRP3g_3IVDOJVAEbeel-Cl5vAurDm-NRo272yXyaP6ESJsS0qieWqcxFxvCL0WUsSz5Fhky0PZueHuwl-nob48pc1J-mqh-MwYd1Gw1Xo7Jfv";
+	private static final String fb_server_key_adm_ios="AAAAubz_A8I:APA91bFIULmI2Rv4m_8jf_Ta1S6jAHrD9oaim8KnO70BUxFGFdLcKU1M8oMFOnhG7gAWgE1f21I0_Pe4ffx0lsu51thi9-pMvISNO4ryifC_JaNkcK3geiYWeolAVo8GqDppC5V2_vBv";
+	
+	//    private static final String fb_server_key_adm="AAAAxlzJ3Gg:APA91bEHZyCJELbuRaAdhNIxADb4w7NWZaF7I4lnc_5Ak1TCZ5xAJCJtwZXKbhen_ECN7vb55Gmpo4GF2FMPNx3S_yIkM56F00j4eXG1SzY4NyugecpNREkUaEPWhW9FZaoPLniKa_dv11";
+    private static final String fb_api_url="https://fcm.googleapis.com/fcm/send";
+    
+    @Async
+    public CompletableFuture<String> send(HttpEntity<String> entity, int whoType, String devType) {
+        RestTemplate restT = new RestTemplate();
+        restT.getMessageConverters().add(0, new StringHttpMessageConverter(StandardCharsets.UTF_8));
+
+        ArrayList<ClientHttpRequestInterceptor> interceptors = new ArrayList<>();
+        
+        String valKey = "";
+        if (whoType == Define.Erp.WHO_TYPE_EMPL) {
+        	valKey = devType == null || devType.equalsIgnoreCase(Define.Erp.DEV_TYPE_AOS) ? fb_server_key_empl_aos : fb_server_key_empl_ios;
+        } else {
+        	valKey = devType == null || devType.equalsIgnoreCase(Define.Erp.DEV_TYPE_AOS) ? fb_server_key_adm_aos : fb_server_key_adm_ios;
+        }
+
+        interceptors.add(new HeaderRequestInterceptor("Authorization",  "key=" + valKey));
+        interceptors.add(new HeaderRequestInterceptor("Content-Type", "application/json; UTF-8 "));
+        restT.setInterceptors(interceptors);
+
+        String firebaseResponse = restT.postForObject(fb_api_url, entity, String.class);
+
+        return CompletableFuture.completedFuture(firebaseResponse);
+    }
+
+}

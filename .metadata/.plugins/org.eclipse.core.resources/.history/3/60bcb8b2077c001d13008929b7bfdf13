@@ -1,0 +1,606 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itsone.igm.dao.GiMapper">
+	
+	<select id="selLoginInfo" parameterType="WmgAdmActVo" resultType="WmgAdmActVo">
+		SELECT 
+			*, AES_DECRYPT(UNHEX(ADM_PW), 'APA91bETbYAQZX2A') AS ADM_PW_VALUE
+		FROM WMG_ADMIN_ACT
+		WHERE 1 = 1
+			AND ADM_TEL = HEX(AES_ENCRYPT(#{admTel}, 'APA91bETbYAQZX2A'))
+			AND ADM_PW = HEX(AES_ENCRYPT(#{admPw}, 'APA91bETbYAQZX2A'))
+	</select>
+	
+	
+	
+	<select id="selCompInfo" parameterType="String" resultType="Wmg0050Vo">
+		SELECT 
+			*
+		FROM WMG0050
+		WHERE 1 = 1
+			AND USE_YN = 'Y'
+		<if test=" coDiv != null and coDiv != '' ">
+				AND CO_DIV = #{coDiv}
+			ORDER BY CO_DIV ASC
+		</if>
+			
+	</select>
+	
+	<select id="selCoDivToCompInfo" parameterType="String" resultType="Wmg0050Vo">
+		SELECT 
+			*
+		FROM WMG0050
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND USE_YN = 'Y'
+	</select>
+
+	<select id="selCourInfos" parameterType="String" resultType="Wmg0100Vo">
+		SELECT 
+			*
+		FROM WMG0100
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND USE_YN = 'Y'
+		ORDER BY CRS_SEQ ASC	
+	</select>
+
+	<select id="selCourNames" parameterType="String" resultType="Wmg0100Vo">
+		SELECT 
+			CG_DIV, CO_DIV, CRS_CD, CRS_SEQ, CRS_NAME
+		FROM WMG0100
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND USE_YN = 'Y'
+		ORDER BY CRS_SEQ ASC	
+	</select>
+	
+	<select id="selHoleInfos" parameterType="Wmg0200Vo" resultType="Wmg0200Vo">
+		SELECT 
+			*
+		FROM WMG0200
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+		<if test=" crsCd != null ">
+			AND CRS_CD = #{crsCd}
+		</if>
+		<if test=" holeNo != null ">
+			AND HOLE_NO = #{holeNo}
+		</if>
+			AND USE_YN = 'Y'
+		ORDER BY CRS_CD ASC, HOLE_NO ASC
+	</select>
+	
+	<select id="selMoblies" resultType="Wmg0300Vo">
+		SELECT 
+			*
+		FROM WMG0300
+		WHERE 1 = 1
+			AND USE_YN = 'Y'
+		ORDER BY MB_SEQ ASC	
+	</select>
+	
+	<select id="selExistCompInfo" parameterType="String" resultType="Integer">
+		SELECT 
+			COUNT(*)
+		FROM WMG0050
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+	</select>
+	
+	<insert id="insCompInfo" parameterType="Wmg0050Vo">
+		INSERT INTO WMG0050 (
+			CG_DIV, CO_DIV, CO_NAME, PIN_CLR_F, PIN_CLR_S, PIN_CLR_T,
+			USE_YN, UPDATE_DATETIME
+		) VALUES (
+			#{cgDiv}, #{coDiv}, #{coName}, #{pinClrF}, #{pinClrS}, #{pinClrT},
+			'Y', NOW()
+		);
+ 	</insert>
+
+	<update id="updCompInfo" parameterType="Wmg0050Vo">
+		UPDATE WMG0050 SET
+			<if test=" cgDiv != null and cgDiv != '' ">
+				CG_DIV = #{cgDiv},
+			</if>
+			<if test=" coName != null and coName != '' ">
+				CO_NAME = #{coName},
+			</if>
+			<if test=" pinClrF != null and pinClrF != '' ">
+				PIN_CLR_F = #{pinClrF},
+			</if>
+			<if test=" pinClrS != null and pinClrS != '' ">
+				PIN_CLR_S = #{pinClrS},
+			</if>
+			<if test=" pinClrT != null and pinClrT != '' ">
+				PIN_CLR_T = #{pinClrT},
+			</if>
+			USE_YN = 'Y',
+			
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+ 	</update>
+
+	<select id="selExistCourInfo" parameterType="Wmg0100Vo" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM WMG0100
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+	</select>
+	
+	<insert id="insCourInfo" parameterType="Wmg0100Vo">
+		INSERT INTO WMG0100 (
+			CG_DIV, CO_DIV, CRS_CD, CRS_SEQ, CRS_NAME,
+			TL_LA_Y, TL_LO_X, TR_LA_Y, TR_LO_X, BL_LA_Y, BL_LO_X, BR_LA_Y, BR_LO_X,
+			CENTER_GEO_Y, CENTER_GEO_X, ROTATE, ZOOM_W, ZOOM_N,
+			USE_YN, UPDATE_DATETIME
+		) VALUES (
+			#{cgDiv}, #{coDiv}, #{crsCd}, #{crsSeq}, #{crsName},
+			#{tlLaY}, #{tlLoX}, #{trLaY}, #{trLoX}, #{blLaY}, #{blLoX}, #{brLaY}, #{brLoX},
+			#{centerGeoY}, #{centerGeoX}, #{rotate}, #{zoomW}, #{zoomN},
+			'Y', NOW()
+		);
+ 	</insert>
+ 	
+ 	<update id="updCourInfo" parameterType="Wmg0100Vo">
+		UPDATE WMG0100 SET
+			<if test=" crsSeq != null and crsSeq != '' ">
+				CRS_SEQ = #{crsSeq},
+			</if>
+			<if test=" crsName != null and crsName != '' ">
+				CRS_NAME = #{crsName},
+			</if>
+			<if test=" tlLaY != null and tlLaY != '' ">
+				TL_LA_Y = #{tlLaY},
+			</if>
+			<if test=" tlLoX != null and tlLoX != '' ">
+				TL_LO_X = #{tlLoX},
+			</if>
+			<if test=" trLaY != null and trLaY != '' ">
+				TR_LA_Y = #{trLaY},
+			</if>
+			<if test=" trLoX != null and trLoX != '' ">
+				TR_LO_X = #{trLoX},
+			</if>
+			<if test=" blLaY != null and blLaY != '' ">
+				BL_LA_Y = #{blLaY},
+			</if>
+			<if test=" blLoX != null and blLoX != '' ">
+				BL_LO_X = #{blLoX},
+			</if>
+			<if test=" brLaY != null and brLaY != '' ">
+				BR_LA_Y = #{brLaY},
+			</if>
+			<if test=" brLoX != null and brLoX != '' ">
+				BR_LO_X = #{brLoX},
+			</if>
+			<if test=" centerGeoY != null and centerGeoY != '' ">
+				CENTER_GEO_Y = #{centerGeoY},
+			</if>
+			<if test=" centerGeoX != null and centerGeoX != '' ">
+				CENTER_GEO_X = #{centerGeoX},
+			</if>
+			<if test=" rotate != null and rotate != '' ">
+				ROTATE = #{rotate},
+			</if>
+			<if test=" zoomW != null and zoomW != '' ">
+				ZOOM_W = #{zoomW},
+			</if>
+			<if test=" zoomN != null and zoomN != '' ">
+				ZOOM_N = #{zoomN},
+			</if>
+			USE_YN = 'Y',
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+ 	</update>
+	
+	<insert id="insCourInfos" parameterType="java.util.List">
+		<foreach collection="list" item="item" index="index" separator=";">
+			INSERT INTO WMG0100 (
+				CG_DIV, CO_DIV, CRS_CD, CRS_SEQ, CRS_NAME,
+				TL_LA_Y, TL_LO_X, TR_LA_Y, TR_LO_X, BL_LA_Y, BL_LO_X, BR_LA_Y, BR_LO_X,
+				CENTER_GEO_Y, CENTER_GEO_X, ROTATE, ZOOM_W, ZOOM_N,
+				USE_YN, UPDATE_DATETIME
+			) VALUES (
+				#{item.cgDiv}, #{item.coDiv}, #{item.crsCd}, #{item.crsSeq}, #{item.crsName},
+				#{item.tlLaY}, #{item.tlLoX}, #{item.trLaY}, #{item.trLoX}, #{item.blLaY}, #{item.blLoX}, #{item.brLaY}, #{item.brLoX},
+				#{item.centerGeoY}, #{item.centerGeoX}, #{item.rotate}, #{item.zoomW}, #{item.zoomN},
+				'Y', NOW()
+			);
+		</foreach>
+	</insert>
+	
+	<insert id="updCourInfos" parameterType="java.util.List">
+		<foreach collection="list" item="item" index="index" separator=";">
+			UPDATE WMG0100 SET
+				<if test=" item.crsSeq != null and item.crsSeq != '' ">
+					CRS_SEQ = #{item.crsSeq},
+				</if>
+				<if test=" item.crsName != null and item.crsName != '' ">
+					CRS_NAME = #{item.crsName},
+				</if>
+				<if test=" item.tlLaY != null ">
+					TL_LA_Y = #{item.tlLaY},
+				</if>
+				<if test=" item.tlLoX != null ">
+					TL_LO_X = #{item.tlLoX},
+				</if>
+				<if test=" item.trLaY != null ">
+					TR_LA_Y = #{item.trLaY},
+				</if>
+				<if test=" item.trLoX != null ">
+					TR_LO_X = #{item.trLoX},
+				</if>
+				<if test=" item.blLaY != null ">
+					BL_LA_Y = #{item.blLaY},
+				</if>
+				<if test=" item.blLoX != null ">
+					BL_LO_X = #{item.blLoX},
+				</if>
+				<if test=" item.brLaY != null ">
+					BR_LA_Y = #{item.brLaY},
+				</if>
+				<if test=" item.brLoX != null ">
+					BR_LO_X = #{item.brLoX},
+				</if>
+				<if test=" item.centerGeoY != null ">
+					CENTER_GEO_Y = #{item.centerGeoY},
+				</if>
+				<if test=" item.centerGeoX != null ">
+					CENTER_GEO_X = #{item.centerGeoX},
+				</if>
+				<if test=" item.rotate != null ">
+					ROTATE = #{item.rotate},
+				</if>
+				<if test=" item.zoomW != null ">
+					ZOOM_W = #{item.zoomW},
+				</if>
+				<if test=" item.zoomN != null ">
+					ZOOM_N = #{item.zoomN},
+				</if>
+
+				USE_YN = 'Y',
+				UPDATE_DATETIME = NOW()
+			WHERE 1 = 1
+				AND CO_DIV = #{item.coDiv}
+				AND CRS_CD = #{item.crsCd}
+		</foreach>
+	</insert>	
+	
+ 	<select id="selExistHoleInfo" parameterType="Wmg0200Vo"  resultType="Integer">
+		SELECT 
+			COUNT(*)
+		FROM WMG0200
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+	</select>
+	
+	<insert id="insHoleInfo" parameterType="Wmg0200Vo">
+		INSERT INTO WMG0200 (
+			CG_DIV, CO_DIV, CRS_CD, CRS_NAME, HOLE_NO, HOLE_NO_NM, PAR, HANDI,
+			TL_LA_Y, TL_LO_X, TR_LA_Y, TR_LO_X, BL_LA_Y, BL_LO_X, BR_LA_Y, BR_LO_X,
+			CENTER_GEO_Y, CENTER_GEO_X, ROTATE, ZOOM_W, ZOOM_N, PIN_GEO_Y, PIN_GEO_X, 
+			HOLE_EXPL, IP_Z_GEO_Y, IP_Z_GEO_X, IP_F_GEO_Y, IP_F_GEO_X, IP_S_GEO_Y, IP_S_GEO_X,
+			USE_YN, UPDATE_DATETIME
+		) VALUES (
+			#{cgDiv}, #{coDiv}, #{crsCd}, #{crsName}, #{holeNo}, #{holeNoNm}, #{par}, #{handi},
+			#{tlLaY}, #{tlLoX}, #{trLaY}, #{trLoX}, #{blLaY}, #{blLoX}, #{brLaY}, #{brLoX},
+			#{centerGeoY}, #{centerGeoX}, #{rotate}, #{zoomW}, #{zoomN}, #{pinGeoY}, #{pinGeoX}, 
+			#{holeExpl}, #{ipZGeoY}, #{ipZGeoX}, #{ipFGeoY}, #{ipFGeoX}, #{ipSGeoY}, #{ipSGeoX}, 
+			'Y', NOW()
+		);
+ 	</insert>
+	
+	<update id="updHoleInfo" parameterType="Wmg0200Vo">
+		UPDATE WMG0200 SET
+			<if test=" holeNoNm != null and holeNoNm != '' ">
+				HOLE_NO_NM = #{holeNoNm},
+			</if>
+			<if test=" par != null ">
+				PAR = #{par},
+			</if>
+			<if test=" handi != null ">
+				HANDI = #{handi},
+			</if>
+			
+			<if test=" tlLaY != null ">
+				TL_LA_Y = #{tlLaY},
+			</if>
+			<if test=" tlLoX != null ">
+				TL_LO_X = #{tlLoX},
+			</if>
+			<if test=" trLaY != null ">
+				TR_LA_Y = #{trLaY},
+			</if>
+			<if test=" trLoX != null ">
+				TR_LO_X = #{trLoX},
+			</if>
+			<if test=" blLaY != null ">
+				BL_LA_Y = #{blLaY},
+			</if>
+			<if test=" blLoX != null ">
+				BL_LO_X = #{blLoX},
+			</if>
+			<if test=" brLaY != null ">
+				BR_LA_Y = #{brLaY},
+			</if>
+			<if test=" brLoX != null ">
+				BR_LO_X = #{brLoX},
+			</if>
+			<if test=" centerGeoY != null ">
+				CENTER_GEO_Y = #{centerGeoY},
+			</if>
+			<if test=" centerGeoX != null ">
+				CENTER_GEO_X = #{centerGeoX},
+			</if>
+			
+			<if test=" rotate != null ">
+				ROTATE = #{rotate},
+			</if>
+			<if test=" zoomW != null ">
+				ZOOM_W = #{zoomW},
+			</if>
+			<if test=" zoomN != null ">
+				ZOOM_N = #{zoomN},
+			</if>
+			<if test=" pinGeoY != null ">
+				PIN_GEO_Y = #{pinGeoY},
+			</if>
+			<if test=" pinGeoX != null ">
+				PIN_GEO_X = #{pinGeoX},
+			</if>
+			
+			<if test=" ipZGeoY != null ">
+				IP_Z_GEO_Y = #{ipZGeoY},
+			</if>
+			<if test=" ipZGeoX != null ">
+				IP_Z_GEO_X = #{ipZGeoX},
+			</if>
+			<if test=" ipFGeoY != null ">
+				IP_F_GEO_Y = #{ipFGeoY},
+			</if>
+			<if test=" ipFGeoX != null ">
+				IP_F_GEO_X = #{ipFGeoX},
+			</if>
+			<if test=" ipSGeoY != null ">
+				IP_S_GEO_Y = #{ipSGeoY},
+			</if>
+			<if test=" ipSGeoX != null ">
+				IP_S_GEO_X = #{ipSGeoX},
+			</if>
+			
+			<if test=" holeExpl != null and holeExpl != '' ">
+				HOLE_EXPL = #{holeExpl},
+			</if>
+			
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+ 	</update>
+ 	
+ 	<select id="selTeeInfos" parameterType="Wmg0201Vo" resultType="Wmg0201Vo">
+		SELECT
+			*
+		FROM WMG0201
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			AND USE_YN = 'Y'
+		ORDER BY TEE_SEQ ASC	
+	</select>
+	
+	<insert id="insTeeInfo" parameterType="Wmg0201Vo">
+		INSERT INTO WMG0201 (
+			CG_DIV, CO_DIV, CRS_CD, HOLE_NO,
+			TEE_SEQ, TEE_CLR, TEE_NM, TEE_NM_SEC, TEE_GEO_Y, TEE_GEO_X, USE_YN, UPDATE_DATETIME
+		) VALUES (
+			#{cgDiv}, #{coDiv}, #{crsCd}, #{holeNo},
+			#{teeSeq}, #{teeClr}, #{teeNm}, #{teeNmSec}, #{teeGeoY}, #{teeGeoX}, 'Y', NOW()
+		);
+ 	</insert>
+	
+	<update id="updTeeInfo" parameterType="Wmg0201Vo">
+		UPDATE WMG0201 SET
+			TEE_NM = #{teeNm},
+			TEE_NM_SEC = #{teeNmSec},
+			TEE_CLR = #{teeClr},
+			TEE_GEO_Y = #{teeGeoY},
+			TEE_GEO_X = #{teeGeoX},
+			USE_YN = 'Y',
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			AND TEE_SEQ = #{teeSeq}
+ 	</update>
+ 	
+ 	<update id="removTeeInfo" parameterType="Wmg0201Vo">
+		UPDATE WMG0201 SET
+			USE_YN = 'N',
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			<if test=" teeSeq != null and teeSeq != '' ">
+				AND TEE_SEQ = #{teeSeq}
+			</if>			
+ 	</update>
+ 	
+ 	<select id="selDotInfos" parameterType="Wmg0202Vo" resultType="Wmg0202Vo">
+		SELECT
+			*
+		FROM WMG0202
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			AND USE_YN = 'Y'
+	</select>
+	
+	<insert id="insDotInfo" parameterType="Wmg0202Vo">
+	<!-- 
+		<selectKey keyProperty="dotSeq" resultType="Wmg0202Vo" order="BEFORE">
+			SELECT
+				IFNULL(FN_NVL(MAX(DOT_SEQ)), 0) + 1 AS dotSeq
+			FROM WMG0202
+			WHERE 1 = 1 
+				AND CO_DIV = #{coDiv}
+				AND CRS_CD = #{crsCd}
+				AND HOLE_NO = #{holeNo}
+				AND DOT_GP = #{dotGp}
+		</selectKey>
+	-->
+		INSERT INTO WMG0202 (
+			CG_DIV, CO_DIV, CRS_CD, HOLE_NO,
+			DOT_GP, DOT_SEQ, DOT_GEO_Y, DOT_GEO_X, USE_YN, UPDATE_DATETIME
+		) VALUES (
+			#{cgDiv}, #{coDiv}, #{crsCd}, #{holeNo},
+			#{dotGp}, #{dotSeq}, #{dotGeoY}, #{dotGeoX}, 'Y', NOW()
+		);
+ 	</insert>
+	
+	<update id="updDotInfo" parameterType="Wmg0202Vo">
+		UPDATE WMG0202 SET
+			DOT_GEO_Y = #{dotGeoY},
+			DOT_GEO_X = #{dotGeoX},
+			USE_YN = 'Y',
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			AND DOT_GP = #{dotGp}
+			AND DOT_SEQ = #{dotSeq}
+ 	</update>
+ 	
+	<update id="removDotInfo" parameterType="Wmg0202Vo">
+		UPDATE WMG0202 SET
+			USE_YN = 'N',
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			<if test=" dotGp != null and dotGp != '' ">
+				AND DOT_GP = #{dotGp}
+			</if>
+			<if test=" dotSeq != null and dotSeq != '' ">
+				AND DOT_SEQ = #{dotSeq}
+			</if>					
+ 	</update>
+ 	
+ 	
+ 	<select id="selAreaInfos" parameterType="Wmg0203Vo" resultType="Wmg0203Vo">
+		SELECT
+			*
+		FROM WMG0203
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			AND USE_YN = 'Y'
+		ORDER BY AREA_SEQ ASC	
+	</select>
+	
+	<insert id="insAreaInfo" parameterType="Wmg0203Vo">
+		INSERT INTO WMG0203 (
+			CG_DIV, CO_DIV, CRS_CD, HOLE_NO,
+			AREA_SECT_CD, AREA_SEQ, AREA_GEO_Y, AREA_GEO_X, USE_YN, UPDATE_DATETIME
+		) VALUES (
+			#{cgDiv}, #{coDiv}, #{crsCd}, #{holeNo},
+			#{areaSectCd}, #{areaSeq}, #{areaGeoY}, #{areaGeoX}, 'Y', NOW()
+		);
+ 	</insert>
+	
+	<update id="updAreaInfo" parameterType="Wmg0203Vo">
+		UPDATE WMG0203 SET
+			AREA_GEO_Y = #{areaGeoY},
+			AREA_GEO_X = #{areaGeoX},
+			USE_YN = 'Y',
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			AND AREA_SECT_CD = #{areaSectCd}
+			AND AREA_SEQ = #{areaSeq}
+ 	</update>
+ 	
+ 	<update id="removAreaInfo" parameterType="Wmg0203Vo">
+		UPDATE WMG0203 SET
+			USE_YN = 'N',
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND CRS_CD = #{crsCd}
+			AND HOLE_NO = #{holeNo}
+			<if test=" areaSectCd != null and areaSectCd != '' ">
+				AND AREA_SECT_CD = #{areaSectCd}
+			</if>
+			<if test=" areaSeq != null and areaSeq != '' ">
+				AND AREA_SEQ = #{areaSeq}
+			</if>
+ 	</update>
+ 	
+ 	<select id="selCoToAreaInfos" parameterType="String" resultType="Wmg0203Vo">
+		SELECT
+			*
+		FROM WMG0203
+		WHERE 1 = 1
+			AND CO_DIV = #{coDiv}
+			AND USE_YN = 'Y'
+		ORDER BY CRS_CD ASC, HOLE_NO ASC, AREA_SECT_CD ASC, AREA_SEQ ASC
+	</select>
+ 	
+ 	<select id="selExistAdmCd" parameterType="String"  resultType="Integer">
+		SELECT 
+			COUNT(*)
+		FROM WMG_ADMIN_ACT
+		WHERE 1 = 1
+			AND ADM_CD = #{admCd}
+	</select>
+	
+	<insert id="insLastAct" parameterType="wmgAdmActVo">
+		INSERT INTO WMG_ADMIN_ACT (
+			ADM_CD, ADM_PW, ADM_LV, ADM_NAME, ADM_TEL,
+			ACT_TYPE, ACT_CG_DIV, ACT_CO_DIV, ACT_CRS_CD, ACT_HOLE_NO, ACT_POINT_TYPE, UPDATE_DATETIME
+		) VALUES (
+			#{admCd}, HEX(AES_ENCRYPT(#{admPw}, 'APA91bETbYAQZX2A')), #{admLv}, #{admName}, HEX(AES_ENCRYPT(#{admTel}, 'APA91bETbYAQZX2A')),
+			#{actType}, #{actCgDiv}, #{actCoDiv}, #{actCrsCd}, #{actHoleNo}, #{actPointType}, NOW()
+		);
+ 	</insert>
+	
+	<update id="updLastAct" parameterType="wmgAdmActVo">
+		UPDATE WMG_ADMIN_ACT SET
+			<if test=" actCoDiv != null and actCoDiv != '' ">
+				ACT_CO_DIV = #{actCoDiv},
+			</if>
+			<if test=" actCrsCd != null and actCrsCd != '' ">
+			<!-- ACT_CRS_CD = #{actCrsCd}, -->
+				ACT_CRS_CD = "A",
+			</if>
+			<if test=" actHoleNo != null ">
+				ACT_HOLE_NO = #{actHoleNo},
+			</if>
+			<if test=" actPointType != null and actPointType != '' ">
+				ACT_POINT_TYPE = #{actPointType},
+			</if>
+			ADM_CD = #{admCd}
+		WHERE 1 = 1
+			AND ADM_CD = #{admCd}
+			AND ADM_PW = HEX(AES_ENCRYPT(#{admPw}, 'APA91bETbYAQZX2A'))
+ 	</update>	
+</mapper>

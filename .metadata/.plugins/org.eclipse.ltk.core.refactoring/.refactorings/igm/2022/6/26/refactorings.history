@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;igm/src/main/java/com/itsone/igm/contr/push/FirebaseCloudMessageService&apos; to &apos;FirebaseCloudMessageService.java&apos;" description="Rename resource &apos;FirebaseCloudMessageService&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="src/main/java/com/itsone/igm/contr/push/FirebaseCloudMessageService" name="FirebaseCloudMessageService.java" stamp="1656049045109" updateReferences="true"/>
+</session>

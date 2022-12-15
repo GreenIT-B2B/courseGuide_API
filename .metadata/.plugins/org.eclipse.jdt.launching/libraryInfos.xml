@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<libraryInfos>
+    <libraryInfo home="/Applications/SpringToolSuite4.app/Contents/Eclipse/plugins/org.eclipse.justj.openjdk.hotspot.jre.full.macosx.x86_64_17.0.4.v20221004-1257/jre" version="17.0.4.1"/>
+    <libraryInfo home="/Users/itswone/Library/Java/JavaVirtualMachines/corretto-11.0.15/Contents/Home" version="11.0.15"/>
+    <libraryInfo home="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre" version="1.8.0_312">
+        <bootpath>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\resources.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\rt.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\sunrsasign.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\jsse.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\jce.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\charsets.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\jfr.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\classes"/>
+        </bootpath>
+        <extensionDirs>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\ext"/>
+            <entry path="C:\WINDOWS\Sun\Java\lib\ext"/>
+        </extensionDirs>
+        <endorsedDirs>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\endorsed"/>
+        </endorsedDirs>
+    </libraryInfo>
+    <libraryInfo home="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk" version="1.8.0_312">
+        <bootpath>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\resources.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\rt.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\sunrsasign.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\jsse.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\jce.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\charsets.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\jfr.jar"/>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\classes"/>
+        </bootpath>
+        <extensionDirs>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\ext"/>
+            <entry path="C:\WINDOWS\Sun\Java\lib\ext"/>
+        </extensionDirs>
+        <endorsedDirs>
+            <entry path="C:\workspace_rd\util\openjdk\java-1.8.0-openjdk\jre\lib\endorsed"/>
+        </endorsedDirs>
+    </libraryInfo>
+    <libraryInfo home="C:\Program Files\openjdk\openjdk-1.8.0.242-1" version="1.8.0_242">
+        <bootpath>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\resources.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\rt.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\sunrsasign.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\jsse.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\jce.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\charsets.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\jfr.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\classes"/>
+        </bootpath>
+        <extensionDirs>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\ext"/>
+            <entry path="C:\WINDOWS\Sun\Java\lib\ext"/>
+        </extensionDirs>
+        <endorsedDirs>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\endorsed"/>
+        </endorsedDirs>
+    </libraryInfo>
+    <libraryInfo home="/Library/Java/JavaVirtualMachines/adoptopenjdk-11.jdk/Contents/Home" version="11.0.11"/>
+    <libraryInfo home="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre" version="1.8.0_242">
+        <bootpath>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\resources.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\rt.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\sunrsasign.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\jsse.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\jce.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\charsets.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\jfr.jar"/>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\classes"/>
+        </bootpath>
+        <extensionDirs>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\ext"/>
+            <entry path="C:\WINDOWS\Sun\Java\lib\ext"/>
+        </extensionDirs>
+        <endorsedDirs>
+            <entry path="C:\Program Files\openjdk\openjdk-1.8.0.242-1\jre\lib\endorsed"/>
+        </endorsedDirs>
+    </libraryInfo>
+    <libraryInfo home="/Applications/SpringToolSuite4.app/Contents/Eclipse/plugins/org.eclipse.justj.openjdk.hotspot.jre.full.macosx.x86_64_17.0.4.v20221004-1257" version="17.0.4.1"/>
+</libraryInfos>

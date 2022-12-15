@@ -1,0 +1,370 @@
+package com.itsone.igm.contr;
+
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.itsone.igm.contr.err.ExpectedException;
+import com.itsone.igm.contr.err.ResponseType;
+import com.itsone.igm.data.json_item.AskItem;
+import com.itsone.igm.data.json_item.Ga0100Item;
+import com.itsone.igm.data.json_item.Ga0200Item;
+import com.itsone.igm.data.json_item.Ga0210Item;
+import com.itsone.igm.data.json_item.NotilItem;
+import com.itsone.igm.data.json_item.OptItem;
+import com.itsone.igm.data.json_item.VerItem;
+import com.itsone.igm.define.Define;
+import com.itsone.igm.helper.DataHelper;
+import com.itsone.igm.service.AskService;
+import com.itsone.igm.service.CmEmplAppService;
+import com.itsone.igm.service.KeyService;
+import com.itsone.igm.service.NotiService;
+import com.itsone.igm.utility.CommonUtil;
+import com.itsone.igm.vo.AskVo;
+import com.itsone.igm.vo.Ga0100Vo;
+import com.itsone.igm.vo.Ga0200Vo;
+import com.itsone.igm.vo.Ga0210Vo;
+import com.itsone.igm.vo.NoticeVo;
+import com.itsone.igm.vo.OptVo;
+import com.itsone.igm.vo.VerVo;
+
+@RestController
+@RequestMapping("/igm/")
+public class CmEmplAppCntr {
+	
+	@SuppressWarnings("unused")
+	private static final Logger logger = LoggerFactory.getLogger(CmEmplAppCntr.class);
+	
+	@Autowired private CmEmplAppService cmEmplAppService;
+	@Autowired private NotiService notiService;
+	@Autowired private AskService askService;
+	@Autowired private KeyService keyService;
+	
+	@RequestMapping("cm/req_ver_last")
+	@ResponseBody
+	public Object reqVerLast(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		if (coDiv == null || coDiv.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		List<VerVo> verInfos = cmEmplAppService.selVersLast(coDiv);
+		if (verInfos == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		return new VerItem(ResponseType.SUCCESS, verInfos, DataHelper.inst().millToDateTimeString(System.currentTimeMillis()));
+	}
+	
+	@RequestMapping("cm/req_opt_app")
+	@ResponseBody
+	public Object reqOptApp(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String cgDiv = request.getParameter("cgDiv");
+		String coDiv = request.getParameter("coDiv");
+		String updTimeOpt = request.getParameter("updTimeOpt");
+		String updTimeMap = request.getParameter("updTimeMap");
+		String updTimeCrs = request.getParameter("updTimeCrs");
+		String updTimeHole = request.getParameter("updTimeHole");
+		
+		if (updTimeOpt == null || updTimeMap == null
+				|| updTimeCrs == null || updTimeHole == null) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Date date = null;
+		try { date = DataHelper.inst().trsFormatMid.parse(updTimeOpt); } catch (Exception e) { }
+		
+		OptVo optVo = new OptVo();
+		if (!CommonUtil.isEmpty(cgDiv)) {
+			optVo.setCgDiv(cgDiv);
+		} else {
+			optVo.setCoDiv(coDiv);	
+		}
+		optVo.setUpdateDatetime(date);
+		optVo.setOptCateg(Define.Opt.CM_OPT_CATEG_APP);
+		
+		List<OptVo> options = cmEmplAppService.selCmOpt(optVo);
+		
+		if (options == null) throw ExpectedException.FAIL_ERR_GEN_NOR;
+		
+		date = null;
+		try { date = DataHelper.inst().trsFormatMid.parse(updTimeMap); } catch (Exception e) { }
+		
+		Ga0100Vo ga0100Vo = new Ga0100Vo();
+		Ga0200Vo ga0200Vo = new Ga0200Vo();
+		if (!CommonUtil.isEmpty(cgDiv)) {
+			optVo.setCgDiv(cgDiv);
+			ga0100Vo.setCgDiv(cgDiv);
+			ga0200Vo.setCgDiv(cgDiv);
+		} else {
+			optVo.setCoDiv(coDiv);
+			ga0100Vo.setCoDiv(coDiv);
+			ga0200Vo.setCoDiv(coDiv);
+		}
+		
+		ga0100Vo.setUpdateDatetime(date);
+		
+		List<Ga0100Vo> ga0100s = cmEmplAppService.selGpsMaps(ga0100Vo);
+		
+		date = null;
+		try { date = DataHelper.inst().trsFormatMid.parse(updTimeCrs); } catch (Exception e) { }
+		
+		ga0200Vo.setUpdateDatetime(date);
+		
+		List<Ga0200Vo> ga0200s = cmEmplAppService.selGpsCrs(ga0200Vo);
+		
+		List<String> coCds = new ArrayList<>();
+		
+		if (!CommonUtil.isEmpty(cgDiv)) {
+			coCds = cmEmplAppService.selCoCds(cgDiv);
+		} else {
+			coCds.add(coDiv);		
+		}
+		
+		List<Ga0210Item> ga0210s = new ArrayList<>();
+		for (String coCd : coCds) {
+			List<String> crsCds = cmEmplAppService.selCrsCds(coCd);
+			
+			date = null;
+			try { date = DataHelper.inst().trsFormatMid.parse(updTimeHole); } catch (Exception e) { }
+			
+			Ga0210Vo ga0210Vo = new Ga0210Vo();
+			ga0210Vo.setCoDiv(coCd);
+			ga0210Vo.setUpdateDatetime(date);
+			
+			for (String crsCd : crsCds) {
+				ga0210Vo.setCourCd(crsCd);
+				
+				List<Ga0210Vo> retGa0210s = cmEmplAppService.selGpsHole(ga0210Vo);
+				
+				Ga0210Item gaItem = new Ga0210Item();
+				gaItem.setGa0210Data(retGa0210s);
+				gaItem.setCourCd(crsCd);
+				
+				ga0210s.add(gaItem);
+			}
+		}
+		
+		return new OptItem(ResponseType.SUCCESS, options, ga0100s, ga0200s, ga0210s);
+	}
+	
+	// 관제 앱 정보
+	@RequestMapping("cm/reqGpsMap")
+	@ResponseBody
+	public Object reqGpsMap(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String updTime = request.getParameter("updTime");
+		
+		if (updTime == null  || CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Date date = null;
+		try {
+			date = DataHelper.inst().trsFormatMid.parse(updTime);
+		} catch (Exception e) { }
+		
+		Ga0100Vo vo = new Ga0100Vo();
+		vo.setCoDiv(coDiv);
+		vo.setUpdateDatetime(date);
+		
+		List<Ga0100Vo> ga0100s = cmEmplAppService.selGpsMaps(vo);
+		if (ga0100s == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		return new Ga0100Item(ResponseType.SUCCESS, ga0100s);
+	}
+	
+	@RequestMapping("cm/reqGpsCrs")
+	@ResponseBody
+	public Object reqGpsCrs(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String updTime = request.getParameter("updTime");
+		
+		if (updTime == null || CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Date date = null;
+		try {
+			date = DataHelper.inst().trsFormat.parse(updTime);
+		} catch (Exception e) { }
+		
+		Ga0200Vo vo = new Ga0200Vo();
+		vo.setCoDiv(coDiv);
+		vo.setUpdateDatetime(date);
+		
+		List<Ga0200Vo> ga0200s = cmEmplAppService.selGpsCrs(vo);
+		if (ga0200s == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+        
+		return new Ga0200Item(ResponseType.SUCCESS, ga0200s);
+	}
+	
+	@RequestMapping("cm/reqGpsHole")
+	@ResponseBody
+	public Object reqGpsHole(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String courCd = request.getParameter("courCd");
+		String updTime = request.getParameter("updTime");
+		
+		if (updTime == null || CommonUtil.isEmpty(coDiv)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		Date date = null;
+		try {
+			date = DataHelper.inst().trsFormat.parse(updTime);
+		} catch (Exception e) { }
+		
+		Ga0210Vo vo = new Ga0210Vo();
+		vo.setCoDiv(coDiv);
+		vo.setCourCd(courCd);
+		vo.setUpdateDatetime(date);
+		
+		List<Ga0210Vo> ga0210s = cmEmplAppService.selGpsHole(vo);
+		if (ga0210s == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+        
+		return new Ga0210Item(ResponseType.SUCCESS, courCd, ga0210s);
+	}
+	
+	@RequestMapping("cm/req_notice_dt")
+	@ResponseBody
+	public Object reqNoticeDt(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String cgDiv = request.getParameter("cgDiv");
+		String coDiv = request.getParameter("coDiv");
+		String notiDay = request.getParameter("notiDay");
+		String notiSeq = request.getParameter("notiSeq");
+		
+		if ((CommonUtil.isEmpty(cgDiv) && CommonUtil.isEmpty(coDiv))
+				|| CommonUtil.isEmpty(notiDay) || CommonUtil.isEmpty(notiSeq)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		NoticeVo notiVo = new NoticeVo();
+		notiVo.setCgDiv(cgDiv == null ? "" : cgDiv);
+		notiVo.setCoDiv(coDiv == null ? "" : coDiv);
+		notiVo.setNotiDay(notiDay);
+		notiVo.setNotiSeq(Integer.parseInt(notiSeq));
+		
+		NoticeVo vo = notiService.selNotic(notiVo);
+		if (vo == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		return new NotilItem(ResponseType.SUCCESS, vo, null);
+	}
+	
+	
+	@RequestMapping("cm/req_notices")
+	@ResponseBody
+	public Object reqNotices(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String cgDiv = request.getParameter("cgDiv");
+		String coDiv = request.getParameter("coDiv");
+		String whoType = request.getParameter("whoType");
+		String notiDepartCd = request.getParameter("notiDepartCd");
+		String pOffset = request.getParameter("pageOffset");
+		String pLimit = request.getParameter("pageLimit");
+		
+		if ((CommonUtil.isEmpty(cgDiv) && CommonUtil.isEmpty(coDiv))
+				|| CommonUtil.isEmpty(pOffset) || CommonUtil.isEmpty(pLimit)
+				|| CommonUtil.isEmpty(whoType) || CommonUtil.isEmpty(notiDepartCd)) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		NoticeVo vo = new NoticeVo();
+		vo.setCgDiv(cgDiv == null ? "" : cgDiv);
+		vo.setCoDiv(coDiv == null ? "" : coDiv);
+		vo.setWhoType(Integer.parseInt(whoType));
+		vo.setNotiDepartCd(notiDepartCd);
+		vo.setPageOffset(Integer.parseInt(pOffset));
+		vo.setPageLimit(Integer.parseInt(pLimit));
+		
+		List<NoticeVo> notics = notiService.selNotics(vo);
+        
+        return new NotilItem(ResponseType.SUCCESS, null, notics);
+	}
+	
+	@RequestMapping("cm/req_ask_dt")
+	@ResponseBody
+	public Object reqAskDt(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String askDay = request.getParameter("askDay"); 
+		String askSeq = request.getParameter("askSeq");
+		
+		if (coDiv == null || coDiv.isEmpty()
+				|| askDay == null || askDay.isEmpty()
+				|| askSeq == null || askSeq.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		AskVo askVo = new AskVo();
+		askVo.setCoDiv(coDiv);
+		askVo.setAskDay(askDay);
+		askVo.setAskSeq(Integer.parseInt(askSeq));
+		
+		AskVo vo = askService.selAsk(askVo);
+		if (vo == null) {
+			throw ExpectedException.FAIL_ERR_GEN_NOR;
+		}
+		
+		return new AskItem(ResponseType.SUCCESS, vo, null);
+	}
+	
+	@RequestMapping("cm/req_asks")
+	@ResponseBody
+	public Object reqAsks(HttpServletRequest request) {
+		keyService.checkTicket(request, null, new Object(){}.getClass().getEnclosingMethod().getName());
+		
+		String coDiv = request.getParameter("coDiv");
+		String emplCd = request.getParameter("emplCd");
+		String pOffset = request.getParameter("pageOffset");
+		String pLimit = request.getParameter("pageLimit");
+		
+		if (pOffset == null || pOffset.isEmpty()
+				|| pLimit == null || pLimit.isEmpty()
+				|| coDiv == null || coDiv.isEmpty()
+				|| emplCd == null || emplCd.isEmpty()) {
+			throw ExpectedException.FAIL_ERR_NOT_ENOUGH_PARAM;
+		}
+		
+		AskVo vo = new AskVo();
+		vo.setCoDiv(coDiv);
+		vo.setAskEmplCd(emplCd);
+		vo.setPageOffset(Integer.parseInt(pOffset));
+		vo.setPageLimit(Integer.parseInt(pLimit));
+		
+		List<AskVo> asks = askService.selEmplAsks(vo);
+        
+        return new AskItem(ResponseType.SUCCESS, null, asks);
+	}
+}

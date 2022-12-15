@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename compilation unit &apos;com.itsone.igm.local_mid.client.AsybcService.java&apos; to &apos;AsyncService.java&apos;&#x0D;&#x0A;- Original project: &apos;igm&apos;&#x0D;&#x0A;- Original element: &apos;com.itsone.igm.local_mid.client.AsybcService.java&apos;&#x0D;&#x0A;- Renamed element: &apos;com.itsone.igm.local_mid.client.AsyncService.java&apos;" description="Rename compilation unit &apos;AsybcService.java&apos;" flags="2" id="org.eclipse.jdt.ui.rename.compilationunit" input="/src\/main\/java&lt;com.itsone.igm.local_mid.client{AsybcService.java" name="AsyncService.java" references="false" stamp="1646025382821" version="1.0"/>
+</session>

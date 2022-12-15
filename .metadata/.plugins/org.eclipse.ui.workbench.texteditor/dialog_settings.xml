@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
+		<item key="selection" value="ORDER"/>
+		<item key="wrap" value="true"/>
+		<item key="casesensitive" value="false"/>
+		<item key="wholeword" value="false"/>
+		<item key="incremental" value="false"/>
+		<item key="isRegEx" value="false"/>
+		<list key="findhistory">
+			<item value="ORDER"/>
+			<item value="Wmg0203Vo"/>
+			<item value="upd_hole_info"/>
+			<item value="removTeeInfo"/>
+			<item value="updTeeInfo"/>
+			<item value="insTeeInfo"/>
+			<item value="selTeeInfos"/>
+			<item value="req_hole_info"/>
+			<item value="300"/>
+			<item value="selMoblies"/>
+			<item value="logger"/>
+			<item value="insert"/>
+			<item value="USE_YN"/>
+			<item value="selCompInfo"/>
+			<item value="selExistCourInfo"/>
+		</list>
+		<list key="replacehistory">
+			<item value="item.getHoleInfo()"/>
+			<item value="vo"/>
+			<item value="faqService"/>
+			<item value="FaqVo"/>
+			<item value="faqVo"/>
+			<item value="FN_NVL"/>
+			<item value="testerService"/>
+			<item value="igm"/>
+		</list>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
+		<item key="DIALOG_X_ORIGIN" value="1400"/>
+		<item key="DIALOG_Y_ORIGIN" value="122"/>
+		<item key="DIALOG_WIDTH" value="336"/>
+		<item key="DIALOG_HEIGHT" value="402"/>
+		<item key="DIALOG_FONT_NAME" value="1|.AppleSystemUIFont|11.0|0|COCOA|1|.AppleSystemUIFont"/>
+	</section>
+</section>

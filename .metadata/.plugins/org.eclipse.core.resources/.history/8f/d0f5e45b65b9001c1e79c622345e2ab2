@@ -1,0 +1,514 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.itsone.igm.dao.EmplInfoMapper">
+
+	<select id="selEmplSnap" parameterType="String" resultType="emplVo">
+		SELECT
+			T1.CO_DIV, T1.EMPL_DEPART_CD, T1.EMPL_NAME, T1.EMPL_PHOTO_THUMB_URL, T1.EMPL_PHOTO_URL,
+			T2.COE_TITLE AS emplDepartName
+		FROM EMPL_INFO T1
+		LEFT JOIN COMP_EX T2 ON T2.CO_DIV = T1.CO_DIV AND T2.COE_DIV = "000" AND T2.COE_CD = T1.EMPL_DEPART_CD AND T2.COE_USE_YN = 'Y'
+		WHERE 1=1
+			AND T1.EMPL_CD = #{emplCd}
+			AND T1.EMPL_USE_YN = 'Y'
+	</select>
+
+	<update id="updEmplPhotoUrl" parameterType="emplVo">
+		UPDATE EMPL_INFO SET
+			EMPL_PHOTO_URL 			= #{emplPhotoUrl},
+			EMPL_PHOTO_THUMB_URL 	= #{emplPhotoThumbUrl},
+			UPDATE_STAFF 			= #{updateStaff},
+			UPDATE_DATETIME 		= NOW(),
+			UPDATE_IP 				= #{updateIp}
+		WHERE 1 = 1
+			AND EMPL_CD = #{emplCd};
+	</update>
+
+
+	<!-- 알람 -->
+	<insert id="insEmplNoti" parameterType="emplNotiVo">
+ 		<selectKey keyProperty="enCd" resultType="emplNotiVo" order="BEFORE">
+ 			SELECT 
+ 				(SELECT LPAD(IFNULL(FN_NVL(MAX(EN_CD)),00000000) + 1, 8, '0') FROM EMPL_NOTI) AS enCd
+ 		</selectKey>
+		INSERT INTO EMPL_NOTI (
+			EMPL_CD, EN_CD, EN_TYPE, EN_REF_VAL_1, EN_REF_VAL_2, EN_REF_VAL_3, EN_COMMENTS, EN_READ_YN,
+			INPUT_STAFF, INPUT_DATETIME, INPUT_IP, 
+			UPDATE_STAFF, UPDATE_DATETIME, UPDATE_IP
+		) VALUES (
+			#{emplCd}, #{enCd}, #{enType}, #{enRefVal1}, #{enRefVal2}, #{enRefVal3}, #{enComments}, #{enReadYn},
+			<choose>
+				<when test=" inputStaff != null and inputStaff != '' ">
+					#{inputStaff}, NOW(), #{inputIp}, 
+					#{inputStaff}, NOW(), #{inputIp}
+				</when>
+				<otherwise>
+					#{emplCd}, NOW(), #{inputIp}, 
+					#{emplCd}, NOW(), #{inputIp}
+				</otherwise>
+			</choose>
+		);
+ 	</insert>
+ 	
+ 	<insert id="insEmplNotis" parameterType="java.util.List">
+		<foreach collection="list" item="item" index="index" separator=";">
+			INSERT INTO EMPL_NOTI (
+				EMPL_CD, 
+				EN_CD, EN_TYPE, EN_REF_VAL_1, EN_REF_VAL_2, EN_REF_VAL_3, EN_COMMENTS, EN_READ_YN,
+				INPUT_STAFF, INPUT_DATETIME, INPUT_IP, 
+				UPDATE_STAFF, UPDATE_DATETIME, UPDATE_IP
+			) VALUES (
+				#{item.emplCd}, (SELECT * FROM (SELECT LPAD(IFNULL(FN_NVL(MAX(EN_CD)),00000000) + 1, 8, '0') FROM EMPL_NOTI) tmp), 
+				#{item.enType}, #{item.enRefVal1}, #{item.enRefVal2}, #{item.enRefVal3}, #{item.enComments}, #{item.enReadYn},
+				#{item.inputStaff}, NOW(), #{item.inputIp}, 
+				#{item.inputStaff}, NOW(), #{item.inputIp}
+			)
+		</foreach>
+	</insert>
+	
+	<select id="selNewNotiYn" parameterType="String" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM EMPL_NOTI
+		WHERE 1=1
+			AND (SELECT DATE_FORMAT((INPUT_DATETIME + INTERVAL 10 DAY), '%Y%m%d')) <![CDATA[>=]]> (SELECT date_format(CURDATE(), '%Y%m%d'))
+			AND EMPL_CD = #{emplCd}
+			AND EN_READ_YN = 'N'
+	</select>
+
+	<select id="selNotiNotice" resultType="emplNotiVo">
+		SELECT
+			CN_CD AS REF_CD_1, CN_SUBJECT AS EN_COMMENTS, DATE_FORMAT(INPUT_DATETIME,
+			'%Y-%m-%d %H:%i:%s') AS INP_DATETIME
+		FROM COMMON_NOTICE_INFO
+		WHERE 1=1
+			AND CN_USE_YN = 'Y'
+			AND (CN_START_DATE IS NULL OR (CN_START_DATE <![CDATA[<]]> DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')
+					AND CN_END_DATE <![CDATA[>]]> DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')))
+				ORDER BY INPUT_DATETIME DESC LIMIT 1
+	</select>
+
+	<select id="selEmplNotis" parameterType="emplNotiVo" resultType="emplNotiVo">
+		SELECT
+			EN_CD, EN_TYPE, EN_REF_VAL_1, EN_REF_VAL_2, EN_REF_VAL_3, EN_COMMENTS,
+			EN_READ_YN, DATE_FORMAT(INPUT_DATETIME, '%Y-%m-%d %H:%i:%s') AS INP_DATETIME
+		FROM EMPL_NOTI
+		WHERE 1=1
+			AND (SELECT DATE_FORMAT((INPUT_DATETIME + INTERVAL 10 DAY), '%Y%m%d')) <![CDATA[>=]]> (SELECT date_format(CURDATE(), '%Y%m%d'))
+			AND EMPL_CD = #{emplCd}
+		ORDER BY INPUT_DATETIME DESC LIMIT #{pageOffset}, #{pageLimit}
+	</select>
+
+	<update id="updNotiReadOk" parameterType="emplNotiVo">
+		UPDATE EMPL_NOTI SET
+			EN_READ_YN 		= 'Y',
+			UPDATE_DATETIME = NOW(),
+			UPDATE_IP 		= #{updateIp}
+		WHERE 1 = 1
+			AND EN_CD = #{enCd}
+	</update>
+
+	<!-- 메세지 -->
+	<select id="selNewMsgYn" parameterType="Integer" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM GG0100
+		WHERE 1=1
+			AND TO_TYPE = 'E'
+			AND TO_NO = #{toNo}
+			AND RECE_TIME IS NULL
+	</select>
+
+	<select id="selMsgCenters" parameterType="Gg0100Vo" resultType="Gg0100Vo">
+		SELECT
+			*
+		FROM (
+			SELECT
+				T1.FROM_TYPE, T1.FROM_NO, T1.FROM_APP_KEY, T1.SEND_TIME, T1.MESSAGE, T1.MSG_TYPE, T1.MSG_URL,
+				DATE_FORMAT(T1.SEND_TIME, '%Y-%m-%d %H:%i:%s') AS sendDatetime,
+				DATE_FORMAT(T1.RECE_TIME, '%Y-%m-%d %H:%i:%s') AS receDatetime,
+				T2.EMPL_NAME, T2.EMPL_PHOTO_THUMB_URL, T3.COE_TITLE AS departName,
+				(SELECT 
+					COUNT(*)
+				FROM GG0100
+				WHERE 1 = 1
+					AND TO_TYPE = 'A' AND TO_APP_KEY = T1.TO_APP_KEY AND RECE_TIME IS NULL) AS cntNotRead
+			FROM GG0100 T1
+			LEFT JOIN EMPL_INFO T2 ON T2.CO_DIV = T1.CO_DIV AND T2.EMPL_MSG_ID = T1.FROM_APP_KEY AND EMPL_USE_YN = 'Y'  
+			LEFT JOIN COMP_EX T3 ON (T1.FROM_TYPE = 'A' OR T1.FROM_TYPE = 'M') AND T3.CO_DIV = T1.CO_DIV AND T3.COE_DIV = '000' AND T3.COE_CD = T1.FROM_NO AND T3.COE_USE_YN = 'Y'
+			WHERE 1=1
+				AND T1.TO_TYPE = 'A'
+				AND T1.TO_APP_KEY = #{toAppKey}
+			ORDER BY T1.SEND_TIME DESC LIMIT #{pageOffset}, #{pageLimit}) G1
+		GROUP BY G1.FROM_TYPE, G1.FROM_APP_KEY
+		ORDER BY G1.SEND_TIME DESC
+	</select>
+
+	<select id="selMsgs" parameterType="Gg0100Vo" resultType="Gg0100Vo">
+		SELECT
+			SEND_DT, SEND_SEQ, FROM_TYPE, FROM_NO, FROM_APP_KEY, TO_TYPE, TO_NO, TO_APP_KEY,
+			DATE_FORMAT(SEND_TIME, '%Y-%m-%d %H:%i:%s') AS sendDatetime,
+			DATE_FORMAT(RECE_TIME, '%Y-%m-%d %H:%i:%s') AS receDatetime,
+			MESSAGE, MSG_TYPE, MSG_URL
+		FROM GG0100
+		WHERE 1=1
+			<choose>
+				<when test=" fromAppKey != null and fromAppKey != '' ">
+					AND ((FROM_TYPE = #{fromType} AND FROM_APP_KEY = #{fromAppKey} AND TO_TYPE = 'A' AND TO_APP_KEY = #{toAppKey})
+				OR (FROM_TYPE = 'A' AND FROM_APP_KEY = #{toAppKey} AND TO_TYPE = #{fromType} AND TO_APP_KEY = #{fromAppKey}))
+				</when>
+				<otherwise>
+					AND ((FROM_TYPE = #{fromType} AND FROM_NO = #{fromNo} AND TO_TYPE = 'A' AND TO_APP_KEY = #{toAppKey})
+				OR (FROM_TYPE = 'A' AND FROM_APP_KEY = #{toAppKey} AND TO_TYPE = #{fromType} AND TO_NO = #{toNo}))
+				</otherwise>
+			</choose>
+		ORDER BY SEND_TIME DESC LIMIT #{pageOffset}, #{pageLimit}
+	</select>
+
+	<insert id="insMsg" parameterType="gg0100Vo">
+		<selectKey keyProperty="sendSeq" resultType="gg0100Vo" order="BEFORE">
+			SELECT (SELECT IFNULL(FN_NVL(MAX(SEND_SEQ)),1) + 1 FROM GG0100 WHERE SEND_DT = #{sendDt}) AS sendSeq
+		</selectKey>
+
+		INSERT INTO GG0100 (
+			CO_DIV, SEND_DT, SEND_SEQ, FROM_TYPE, FROM_NO, FROM_APP_KEY, TO_TYPE, TO_NO, TO_APP_KEY, SEND_TIME, 
+			MESSAGE, MSG_TYPE, MSG_URL
+		) VALUES (
+			#{coDiv}, #{sendDt}, #{sendSeq}, #{fromType}, #{fromNo}, #{fromAppKey}, #{toType}, #{toNo}, #{toAppKey}, NOW(), 
+			#{message}, #{msgType}, #{msgUrl}
+		);
+
+		<!-- <selectKey keyProperty="retSendSeq" resultType="java.lang.Integer" 
+			order="AFTER"> SELECT SEND_SEQ AS retSendSeq FROM GG0100 WHERE 1 = 1 AND 
+			CO_DIV = #{emplCertToken} AND SEND_DT = #{sendDt} ORDER BY SEND_TIME DESC 
+			LIMIT 1 </selectKey> -->
+	</insert>
+
+	<select id="selLastMsgSendDateTime" parameterType="Gg0100Vo" resultType="String">
+		SELECT
+			DATE_FORMAT(SEND_TIME, '%Y-%m-%d %H:%i:%s') AS sendDatetime
+		FROM GG0100
+		WHERE 1=1
+			AND CO_DIV = #{coDiv}
+			AND SEND_DT = #{sendDt}
+			AND FROM_TYPE = 'A'
+			AND FROM_APP_KEY = #{fromAppKey}
+			AND TO_TYPE = #{toType}
+			AND TO_APP_KEY = #{toAppKey}
+		ORDER BY SEND_TIME DESC LIMIT 1
+	</select>
+
+	<update id="updMsgReadOk" parameterType="gg0100Vo">
+		UPDATE GG0100 SET
+			RECE_TIME = NOW()
+		WHERE 1= 1
+			AND CO_DIV = #{coDiv}
+			AND FROM_TYPE = #{fromType}
+			<choose>
+				<when test=" fromAppKey != null and fromAppKey != '' ">
+					AND FROM_APP_KEY = #{fromAppKey}		
+				</when>
+				<otherwise>
+					AND FROM_NO = #{fromNo}
+				</otherwise>
+			</choose>
+			AND RECE_TIME IS NULL
+	</update>
+
+	<select id="selMsgEmpls" parameterType="EmplVo" resultType="EmplVo">
+		SELECT
+			EMPL_CD, EMPL_NAME, EMPL_DEPART_CD, EMPL_PHOTO_THUMB_URL, EMPL_MSG_ID, 
+			AES_DECRYPT(UNHEX(EMPL_TEL), 'APA91bETbYAQZX2A') AS EMPL_TEL_VALUE, DATE_FORMAT(INPUT_DATETIME, '%Y-%m-%d %H:%i:%s' ) AS INP_DATETIME
+		FROM EMPL_INFO
+		WHERE 1=1
+			AND CO_DIV = #{coDiv}
+			AND EMPL_CD <![CDATA[!=]]> #{emplCd}
+			<if test=" updateDatetime != null">
+				AND UPDATE_DATETIME > #{updateDatetime}
+			</if>
+			AND EMPL_USE_YN = 'Y'
+		ORDER BY EMPL_NAME ASC
+	</select>
+	
+	<!-- 자주쓰는 메세지 -->
+	<select id="selEmplFavMsgYn" parameterType="EmplFavMsgVo" resultType="Integer">
+		SELECT
+			COUNT(*)
+		FROM EMPL_FAV_MSG
+		WHERE 1=1
+			AND EMPL_CD = #{emplCd}
+			AND EFM_CD = #{efmCd}
+			AND USE_YN = 'Y'
+	</select>
+
+	<select id="selEmplFavMsgs" parameterType="String" resultType="EmplFavMsgVo">
+		SELECT
+			EMPL_CD, EFM_CD, EFM_MSG, DATE_FORMAT(UPDATE_DATETIME, '%Y-%m-%d %H:%i:%s' ) AS UPD_DATETIME
+		FROM EMPL_FAV_MSG
+		WHERE 1=1
+			AND EMPL_CD = #{emplCd}
+			<if test=" updateDatetime != null">
+				AND UPDATE_DATETIME > #{updateDatetime}
+			</if>
+			AND USE_YN = 'Y'
+		ORDER BY UPD_DATETIME DESC
+	</select>
+
+	
+	<insert id="insEmplFavMsg" parameterType="emplFavMsgVo">
+		<selectKey keyProperty="efmCd" resultType="emplFavMsgVo" order="BEFORE">
+	 		SELECT (SELECT LPAD(IFNULL(FN_NVL(MAX(EFM_CD)),00000) + 1, 5, '0') FROM EMPL_FAV_MSG) AS efmCd
+	 	</selectKey>
+		
+		INSERT INTO EMPL_FAV_MSG (
+			EMPL_CD, EFM_CD, EFM_MSG, UPDATE_DATETIME
+		) VALUES (
+			#{emplCd}, #{efmCd}, #{efmMsg}, NOW() 
+		)
+	</insert>
+
+	<update id="updEmplFavMsg" parameterType="emplFavMsgVo">
+		UPDATE EMPL_FAV_MSG SET
+			EFM_MSG			= #{efmMsg},
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND EMPL_CD = #{emplCd}
+			AND EFM_CD = #{efmCd}
+	</update>
+
+
+	<update id="removEmplFavMsg" parameterType="emplFavMsgVo">
+		UPDATE EMPL_FAV_MSG SET
+			USE_YN			= 'N',
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND EMPL_CD = #{emplCd}
+			AND EFM_CD = #{efmCd}
+			
+		<selectKey keyProperty="updDatetime" resultType="java.lang.String" order="AFTER">
+			SELECT
+				DATE_FORMAT(EC_TOKEN_EXPIRE_TIME, '%Y-%m-%d %H:%i:%s' ) AS updDatetime
+			FROM EMPL_FAV_MSG
+			WHERE 1 = 1
+				AND EMPL_CD = #{emplCd}
+				AND EFM_CD = #{efmCd}
+		</selectKey>
+			
+	</update>
+	
+	<select id="selLastEmplFavMsgCd" parameterType="String" resultType="emplFavMsgVo">
+		SELECT
+			EFM_CD, UPDATE_DATETIME
+		FROM EMPL_FAV_MSG
+		WHERE 1=1
+			AND EMPL_CD = #{emplCd}
+			AND USE_YN = 'Y'
+		ORDER BY UPDATE_DATETIME DESC LIMIT 1
+	</select>
+
+	<!-- EMPL 옵션 -->
+	<insert id="insEmplOpts" parameterType="java.util.List">
+		<foreach collection="list" item="item" index="index" separator=";">
+			INSERT INTO EMPL_OPT (
+				EMPL_CD, EO_CD, EO_VAL, UPDATE_DATETIME
+			) VALUES (
+				#{item.emplCd}, #{item.eoCd}, #{item.eoVal}, NOW() 
+			)
+		</foreach>
+	</insert>
+	
+	<insert id="insEmplOpt" parameterType="emplOptVo">
+		INSERT INTO EMPL_OPT (
+			EMPL_CD, EO_CD, EO_VAL, UPDATE_DATETIME
+		) VALUES (
+			#{emplCd}, #{eoCd}, #{eoVal}, NOW() 
+		)
+	</insert>
+	
+	<update id="updEmplOpt" parameterType="emplOptVo">
+		UPDATE EMPL_OPT SET
+			EO_VAL 			= #{eoVal},
+			UPDATE_DATETIME = NOW()
+		WHERE 1 = 1
+			AND EMPL_CD = #{emplCd}
+			AND EO_CD = #{eoCd}
+	</update>
+
+	<update id="updEmplOpts" parameterType="java.util.List">
+		<foreach collection="list" item="item" index="index" separator=";">
+			UPDATE EMPL_OPT SET
+				EO_VAL 			= #{item.eoVal},
+				UPDATE_DATETIME = NOW()
+			WHERE 1=1
+				AND EMPL_CD = #{item.emplCd}
+				AND EO_CD = #{item.eoCd}
+		</foreach>
+	</update>
+	
+	<select id="selEmplOpt" parameterType="emplOptVo" resultType="String">
+		SELECT
+			EO_VAL
+		FROM EMPL_OPT
+		WHERE 1=1
+			AND EMPL_CD = #{emplCd}
+			AND EO_CD = #{eoCd}
+	</select>
+	
+	<!-- 웹 -->
+ 	<select id="selCntEmpl" parameterType="cmSearchVo" resultType="Integer">
+		SELECT 
+			COUNT(EMPL_CD) 
+		FROM EMPL_INFO
+		WHERE 1=1
+		<if test=" coDiv != null and coDiv != '' ">
+			AND CO_DIV = #{coDiv}
+		</if>
+		<if test=" loginCd != null and loginCd != '' ">
+			AND EMPL_CD = #{loginCd}
+		</if>
+		<if test=" searchStartDateValue1 != null and searchStartDateValue1 != '' ">
+			AND ${searchDateField1} <![CDATA[>=]]> STR_TO_DATE(CONCAT(#{searchStartDateValue1},' ', '00:00:00'),'%Y.%m.%d %H:%i:%s') 
+		</if>
+		<if test=" searchEndDateValue1 != null and searchEndDateValue1 != '' ">
+			AND ${searchDateField1} <![CDATA[<=]]> STR_TO_DATE(CONCAT(#{searchEndDateValue1},' ', '23:59:59'),'%Y.%m.%d %H:%i:%s') 
+		</if>
+		<if test=" searchValue1 != null and searchValue1 != '' ">
+			AND ${searchField1} = #{searchValue1}
+		</if>
+		<if test=" searchValue2 != null and searchValue2 != '' ">
+			AND ${searchField2} LIKE CONCAT('%', #{searchValue2}, '%')
+		</if>
+			AND EMPL_USE_YN = 'Y'
+	</select>
+	
+	<select id="selEmpls" parameterType="cmSearchVo" resultType="emplVo">
+		SELECT 
+			T1.EMPL_CD, T1.CO_DIV, T1.EMPL_NAME, AES_DECRYPT(UNHEX(T1.EMPL_TEL), 'APA91bETbYAQZX2A') AS emplTelValue, T1.EMPL_DEPART_CD, T1.INPUT_DATETIME, T1.UPDATE_DATETIME,
+			T2.COE_TITLE AS emplDepartName,
+			IF (ISNULL(T1.EMPL_PW), 'N', 'Y') AS emplCertYn,
+			IF (T1.EMPL_LV = '0', '마스터', '일반') AS emplLvNm,
+			IF (ISNULL(T3.CO_NAME), '전체', T3.CO_NAME) AS coNm
+		FROM EMPL_INFO T1
+		LEFT JOIN COMP_EX T2 ON T2.CO_DIV = T1.CO_DIV AND T2.COE_DIV = "000" AND T2.COE_CD = T1.EMPL_DEPART_CD AND T2.COE_USE_YN = 'Y'
+		LEFT JOIN COMP_INFO T3 ON T3.CO_DIV = T1.CO_DIV AND T3.CO_USE_YN = 'Y'
+		WHERE 1=1
+		<if test=" coDiv != null and coDiv != '' ">
+			AND T1.CO_DIV = #{coDiv}
+		</if>
+		<if test=" loginCd != null and loginCd != '' ">
+			AND T1.EMPL_CD = #{loginCd}
+		</if>
+		<if test=" searchStartDateValue1 != null and searchStartDateValue1 != '' ">
+			AND T1.${searchDateField1} <![CDATA[>=]]> STR_TO_DATE(CONCAT(#{searchStartDateValue1},' ', '00:00:00'),'%Y.%m.%d %H:%i:%s') 
+		</if>
+		<if test=" searchEndDateValue1 != null and searchEndDateValue1 != '' ">
+			AND T1.${searchDateField1} <![CDATA[<=]]> STR_TO_DATE(CONCAT(#{searchEndDateValue1},' ', '23:59:59'),'%Y.%m.%d %H:%i:%s') 
+		</if>
+		<if test=" searchValue1 != null and searchValue1 != '' ">
+			AND T1.${searchField1} = #{searchValue1}
+		</if>
+		<if test=" searchValue2 != null and searchValue2 != '' ">
+			AND T1.${searchField2} LIKE CONCAT('%', #{searchValue2}, '%')
+		</if>
+		<if test=" searchValue3 != null and searchValue3 != '' ">
+			AND T1.${searchField3} LIKE CONCAT('%', #{searchValue3}, '%')
+		</if>
+			AND T1.EMPL_USE_YN = 'Y'
+		<if test=" sortFieldName != null and sortFieldName != '' ">
+			ORDER BY ${sortFieldName} ${sortDirection}
+		</if>
+        <if test=" isPaging ">
+			LIMIT #{start}, #{pageSize}
+		</if>
+	</select>
+
+	<insert id="insEmplInfo" parameterType="emplVo">
+  		<selectKey keyProperty="emplCd" resultType="emplVo" order="BEFORE">
+ 			SELECT 
+ 				(SELECT LPAD(IFNULL(FN_NVL(MAX(EMPL_CD)), 00000001) + 1, 8, '0') FROM EMPL_INFO) AS emplCd
+ 		</selectKey>
+		INSERT INTO EMPL_INFO (
+			EMPL_CD, CO_DIV, EMPL_LV, EMPL_NAME, EMPL_TEL, EMPL_DEPART_CD, EMPL_PHOTO_URL, EMPL_PHOTO_THUMB_URL, EMPL_USE_YN,
+			INPUT_STAFF, INPUT_DATETIME, INPUT_IP,
+			UPDATE_STAFF, UPDATE_DATETIME, UPDATE_IP
+		) VALUES (
+			#{emplCd}, #{coDiv}, #{emplLv}, #{emplName}, HEX(AES_ENCRYPT(#{emplTelValue}, 'APA91bETbYAQZX2A')), #{emplDepartCd}, '', '', 'Y',
+			<choose>
+				<when test=" inputStaff != null and inputStaff != '' ">
+					#{inputStaff}, NOW(), #{inputIp},
+					#{inputStaff}, NOW(), #{inputIp}
+				</when>
+				<otherwise>
+					#{emplCd}, NOW(), #{inputIp}, 
+					#{emplCd}, NOW(), #{inputIp}
+				</otherwise>
+			</choose>
+		);
+ 	</insert>
+
+ 	<update id="updEmplInfo" parameterType="emplVo">
+		UPDATE EMPL_INFO SET
+			<if test=" coDiv != null and coDiv != '' ">
+				CO_DIV 			= coDiv,
+			</if>
+			<if test=" emplPw != null and emplPw != '' ">
+				EMPL_PW 		= HEX(AES_ENCRYPT(#{emplPw}, 'APA91bETbYAQZX2A')),
+			</if>
+			<if test=" emplLv != null and emplLv != '' ">
+				EMPL_LV 		= #{emplLv}, 
+			</if>
+			<if test=" emplName != null and emplName != '' ">
+				EMPL_NAME 		= #{emplName}, 
+			</if>
+			<if test=" emplTelValue != null and emplTelValue != '' ">
+				EMPL_TEL 		= HEX(AES_ENCRYPT(#{emplTelValue}, 'APA91bETbYAQZX2A')),
+			</if>
+			<if test=" emplDepartCd != null and emplDepartCd != '' ">
+				EMPL_DEPART_CD 		= #{emplDepartCd}, 
+			</if>
+			EMPL_USE_YN			= 'Y',
+			UPDATE_STAFF    	= #{updateStaff},
+			UPDATE_DATETIME 	= NOW(), 
+			UPDATE_IP       	= #{updateIp}
+		WHERE EMPL_CD = #{emplCd};
+ 	</update>
+
+	<select id="selEmplInfo" parameterType="emplVo" resultType="emplVo">
+		SELECT 
+			*, AES_DECRYPT(UNHEX(EMPL_TEL), 'APA91bETbYAQZX2A') AS emplTelValue,
+			IF (ISNULL(EMPL_PW), 'N', 'Y') AS emplCertYn
+		FROM EMPL_INFO
+		WHERE 1=1
+			AND EMPL_CD = #{emplCd}
+			AND EMPL_USE_YN = 'Y'
+ 	</select>
+ 	
+ 	<select id="selExistEmplCd" parameterType="emplVo" resultType="String">
+		SELECT 
+			EMPL_CD
+		FROM EMPL_INFO
+		WHERE 1=1
+			AND EMPL_TEL = HEX(AES_ENCRYPT(#{emplTelValue}, 'APA91bETbYAQZX2A'))
+ 	</select>
+ 	
+ 	<update id="updUnuseEmpl" parameterType="emplVo">
+		UPDATE EMPL_INFO SET
+			EMPL_USE_YN			= 'N', 
+			UPDATE_STAFF    	= #{updateStaff},
+			UPDATE_DATETIME 	= NOW(), 
+			UPDATE_IP       	= #{updateIp}
+		WHERE EMPL_CD = #{emplCd};
+ 	</update>
+
+	<select id="selExistMaster" parameterType="String" resultType="Integer">
+		SELECT 
+			COUNT(*)
+		FROM EMPL_INFO
+		WHERE 1=1
+			AND CO_DIV = #{coDiv}
+			AND EMPL_LV = '0'
+			AND EMPL_USE_YN = 'Y'
+ 	</select>
+
+</mapper>
